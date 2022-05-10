@@ -28,17 +28,18 @@ class Distance2goal():
         except:
             print("Do not get transform!")
 
-        ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
 
-        std_dev = np.std(result)
+        # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
 
-        for i in range(len(result)):
-            if(result[i] < ave_dis + std_dev and result[i] > ave_dis - std_dev):
-                result[i] = (0,1,0)
-            elif(result[i] > ave_dis + std_dev):
-                result[i] = (0,0,1)
-            else:
-                result[i] = (1,0,0)
+        # std_dev = np.std(result)
+
+        # for i in range(len(result)):
+        #     if(result[i] < ave_dis + std_dev and result[i] > ave_dis - std_dev):
+        #         result[i] = (0,1,0)
+        #     elif(result[i] > ave_dis + std_dev):
+        #         result[i] = (0,0,1)
+        #     else:
+        #         result[i] = (1,0,0)
         return result
 
     def get_grid_center_position(self, index):
