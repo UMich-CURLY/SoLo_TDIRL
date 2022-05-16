@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 from matplotlib import colors, markers
 import tf
 from tf.transformations import quaternion_matrix
-from scipy.spatial.transform import Rotation
 
 class FeatureExpect():
     def __init__(self, goal, gridsize=(3,3), resolution=1):

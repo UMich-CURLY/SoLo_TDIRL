@@ -17,9 +17,9 @@ class Laser2density():
         self.laser = None
         self.max_laser_dis = 25
         self.temp_result = [0]*gridsize[0] * gridsize[1]
-        print("Init!!")
+        print("Initializing!")
         rospy.sleep(1.0)
-        print("Init Done!!")
+        print("Initializing Done!")
 
     
     def laser_callback(self, data):
@@ -58,7 +58,7 @@ class Laser2density():
         # plt.ion() # enable real-time plotting
         # plt.figure(1) # create a plot
         # plt.plot(125,250, markersize=15, marker=10, color="red")
-        # plt.imshow(1.0 - 1./(1.+np.exp(map_logs)), 'Greys')
+        # plt.imshow(1.0 - 1./(1.+np.exp(self.map_logs)), 'Greys')
         # plt.pause(0.005)
         
 
