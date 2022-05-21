@@ -10,6 +10,10 @@ from matplotlib import colors, markers
 import tf
 from tf.transformations import quaternion_matrix
 
+from collections import namedtuple
+
+# Step = namedtuple('Step','cur_state action next_state')
+Step = namedtuple('Step','cur_state next_state')
 class FeatureExpect():
     def __init__(self, goal, gridsize=(3,3), resolution=1):
         self.gridsize = gridsize
@@ -61,12 +65,17 @@ class FeatureExpect():
         self.localcost_feature = self.Laser2density.temp_result
         # print(self.distance_feature[0], self.localcost_feature[0])
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] for i in range(len(self.distance_feature))])
+        print(self.current_feature)
 
     def get_expect(self):
         R1 = self.get_robot_pose()
 
         # self.position_offset = self.robot_pose
         self.get_current_feature()
+
+        with open('animal.csv','a') as csvfile:
+            np.savetxt(csvfile,self.current_feature.T , delimiter=",")
+
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
 
         self.robot_pose_rb = [0.0,0.0]
@@ -103,13 +112,25 @@ class FeatureExpect():
             index = self.in_which_cell()
             if(not index in self.trajectory and index):
                 self.trajectory.append(index)
+            
+            step_list = []
             rospy.sleep(0.1)
+
+        # for i in range(len(self.trajectory) - 1):
+        #     step_list.append(Step(cur_state=self.trajectory[i], next_state=self.trajectory[i+1]))
+        
+        trajs = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
+        with open('trajs.csv','a') as csvfile:
+            np.savetxt(csvfile,np.array([trajs]) , delimiter=",")
+        
         discount = [(1/e)**i for i in range(len(self.trajectory))]
         for i in range(len(discount)):
             print("Feature value:", self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])])
             self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
         self.trajectory = []
+	
+	
 
         print(self.feature_expect)
 

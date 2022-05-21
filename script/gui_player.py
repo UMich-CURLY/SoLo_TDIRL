@@ -11,10 +11,11 @@ NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
 
 class GuiPlayer(tk.Frame):
-   def __init__(self, parent, gridsize=(250,250),resolution=0.001):
+   def __init__(self, parent, gridsize=(250,250),resolution=0.01):
        tk.Frame.__init__(self, parent)
        self.parent = parent
        self.initialize_user_interface()
+       self.gridsize = gridsize
        self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
 
    def initialize_user_interface(self):
@@ -27,13 +28,13 @@ class GuiPlayer(tk.Frame):
     #    self.label=tk.Label(self.parent,text="Please a password")
     #    self.label.pack()
 
-   def plot(self,map_logs):
+   def plot(self):
        fig = Figure(figsize = (5, 5), dpi = 100)
        plot1 = fig.add_subplot(111)
-       plot1.imshow(1.0 - 1./(1.+np.exp(map_logs)), 'Greys')
-       canvas = FigureCanvasTkAgg(fig, master = self.parent)  
+       plot1.imshow(1.0 - 1./(1.+np.exp(self.laser.map_logs)), 'Greys')
+       canvas = FigureCanvasTkAgg(fig, master = self.parent)
        canvas.draw() 
-       canvas.get_tk_widget().pack()
+       canvas.get_tk_widget().place(x=0, y=0, width=500, height=500)
        toolbar = NavigationToolbar2Tk(canvas, self.parent)
        toolbar.update()
        canvas.get_tk_widget().pack()
@@ -49,9 +50,7 @@ if __name__ == '__main__':
    root = tk.Tk()
    gui = GuiPlayer(root)
    gui.initialize_user_interface()
-   gridsize=(250,250)
    while not rospy.is_shutdown():
-    map_logs = np.reshape(gui.laser.result,(gridsize[1], gridsize[0]))
-    gui.plot(map_logs)
-    gui.mainloop()
-    rospy.spin()
+    gui.plot()
+    gui.update_idletasks()
+    gui.update()
