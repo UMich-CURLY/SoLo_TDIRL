@@ -11,6 +11,8 @@ import tf
 from tf.transformations import quaternion_matrix
 
 from collections import namedtuple
+from threading import Thread
+
 
 # Step = namedtuple('Step','cur_state action next_state')
 Step = namedtuple('Step','cur_state next_state')
@@ -27,6 +29,8 @@ class FeatureExpect():
         self.position_offset = [0.0,0.0]
         self.trajectory = []
         self.tf_listener =  tf.TransformListener()
+        self.feature_maps = []
+        self.trajs = []
 
         # self.pose_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.get_robot_pose, queue_size=1)
 
@@ -67,14 +71,13 @@ class FeatureExpect():
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] for i in range(len(self.distance_feature))])
         print(self.current_feature)
 
-    def get_expect(self):
+    def get_expect(self, file):
         R1 = self.get_robot_pose()
 
         # self.position_offset = self.robot_pose
         self.get_current_feature()
 
-        with open('animal.csv','a') as csvfile:
-            np.savetxt(csvfile,self.current_feature.T , delimiter=",")
+        self.feature_maps.append(np.array(self.current_feature).T)
 
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
 
@@ -120,8 +123,8 @@ class FeatureExpect():
         #     step_list.append(Step(cur_state=self.trajectory[i], next_state=self.trajectory[i+1]))
         
         trajs = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
-        with open('trajs.csv','a') as csvfile:
-            np.savetxt(csvfile,np.array([trajs]) , delimiter=",")
+
+        self.trajs.append(np.array(trajs))
         
         discount = [(1/e)**i for i in range(len(self.trajectory))]
         for i in range(len(discount)):
@@ -147,6 +150,8 @@ class FeatureExpect():
 
         return z
 
+
+
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         data = PoseStamped()
@@ -154,11 +159,44 @@ if __name__ == "__main__":
         data.pose.position.y = -6
         data.header.frame_id = "/map"
         feature = FeatureExpect(goal=data)
+
+        # fm_file = TemporaryFile()
+        fm_file = "./fm.npz"
+        traj_file = "./trajs.npz"
+        def task(id):
+            feature.get_expect(fm_file)
+        # threads = []
+        # for n in range(1, 11):
+        #     t = Thread(target=task, args=(n,))
+        #     threads.append(t)
+        #     t.start()
+        #     rospy.sleep(0.3)
+
+        # for t in threads:
+        #     t.join()
         
         while(not rospy.is_shutdown()):
-            feature.get_expect()
-            plt.ion() # enable real-time plotting
-            plt.figure(1) # create a plot
-            plt.plot(125,250, markersize=15, marker=10, color="red")
-            plt.imshow(1.0 - 1./(1.+np.exp(feature.Laser2density.map_logs)), 'Greys')
-            plt.pause(0.005)
+            # feature.get_expect(fm_file)
+            # np.savez(fm_file, *feature.feature_maps)
+            # np.savez(traj_file, *feature.trajs)
+            threads = []
+            for n in range(1, 11):
+                t = Thread(target=task, args=(n,))
+                threads.append(t)
+                t.start()
+                rospy.sleep(0.3)
+
+            for t in threads:
+                t.join()
+            
+            np.savez(fm_file, *feature.feature_maps)
+            np.savez(traj_file, *feature.trajs)
+
+            # plt.ion() # enable real-time plotting
+            # plt.figure(1) # create a plot
+            # plt.plot(125,250, markersize=15, marker=10, color="red")
+            # plt.imshow(1.0 - 1./(1.+np.exp(feature.Laser2density.map_logs)), 'Greys')
+            # plt.pause(0.005)
+
+        
+

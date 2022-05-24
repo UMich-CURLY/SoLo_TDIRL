@@ -31,7 +31,7 @@ class Laser2density():
         for i in range(len(self.laser.ranges)):
             if(self.laser.ranges[i] < self.max_laser_dis):
                 laser_angle = self.laser.angle_min + self.laser.angle_increment*i + np.pi/2.0
-                laser_x = self.laser.ranges[i]*np.cos(laser_angle)
+                laser_x = -self.laser.ranges[i]*np.cos(laser_angle)
                 laser_y = self.laser.ranges[i]*np.sin(laser_angle)
 
                 if(abs(laser_x) <= self.gridsize[0]*self.resolution / 2.0 and laser_y <= self.gridsize[0]*self.resolution and laser_y >= 0):
@@ -55,11 +55,11 @@ class Laser2density():
         self.map_logs = np.reshape(self.result,(self.gridsize[1], self.gridsize[0]))
 
 
-        # plt.ion() # enable real-time plotting
-        # plt.figure(1) # create a plot
-        # plt.plot(125,250, markersize=15, marker=10, color="red")
-        # plt.imshow(1.0 - 1./(1.+np.exp(self.map_logs)), 'Greys')
-        # plt.pause(0.005)
+        plt.ion() # enable real-time plotting
+        plt.figure(1) # create a plot
+        plt.plot(125,250, markersize=15, marker=10, color="red")
+        plt.imshow(1.0 - 1./(1.+np.exp(self.map_logs)), 'Greys')
+        plt.pause(0.005)
         
 
         # for i in range(self.gridsize[1]):

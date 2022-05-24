@@ -1,291 +1,367 @@
-"""
-Implements the gridworld MDP.
-
-Matthew Alger, 2015
-matthew.alger@anu.edu.au
-"""
+# Gridworld provides a basic environment for RL agents to interact with
+#
+# ---
+# @author Yiren Lu
+# @email luyiren [at] seas [dot] upenn [dot] edu
+#
+# MIT License
 
 import numpy as np
-import numpy.random as rn
 
-class Gridworld(object):
+
+class GridWorld(object):
+  """
+  Grid world environment
+  """
+
+  def __init__(self, grid, terminals, trans_prob=1):
     """
-    Gridworld MDP.
+    input:
+      grid        2-d list of the grid including the reward
+      terminals   a set of all the terminal states
+      trans_prob  transition probability when given a certain action
     """
+    self.height = len(grid)
+    self.width = len(grid[0])
+    self.n_states = self.height*self.width
+    for i in range(self.height):
+      for j in range(self.width):
+        grid[i][j] = str(grid[i][j])
 
-    def __init__(self, grid_size, wind, discount):
-        """
-        grid_size: Grid size. int.
-        wind: Chance of moving randomly. float.
-        discount: MDP discount. float.
-        -> Gridworld
-        """
 
-        self.actions = ((1, 0), (0, 1), (-1, 0), (0, -1))
-        self.n_actions = len(self.actions)
-        self.n_states = grid_size**2
-        self.grid_size = grid_size
-        self.wind = wind
-        self.discount = discount
+    self.terminals = terminals
+    self.grid = grid
+    self.neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)]
+    self.actions = [0, 1, 2, 3, 4]
+    self.n_actions = len(self.actions)
+    # self.dirs = {0: 's', 1: 'r', 2: 'l', 3: 'd', 4: 'u'}
+    self.dirs = {0: 'r', 1: 'l', 2: 'd', 3: 'u', 4: 's'}
+    #              right,    left,   down,   up ,   stay
+    # self.action_nei = {0: (0,1), 1:(0,-1), 2:(1,0), 3:(-1,0)}
 
-        # Preconstruct the transition probability array.
-        self.transition_probability = np.array(
-            [[[self._transition_probability(i, j, k)
-               for k in range(self.n_states)]
-              for j in range(self.n_actions)]
-             for i in range(self.n_states)])
+    # If the mdp is deterministic, the transition probability of taken a certain action should be 1
+    # otherwise < 1, the rest of the probability are equally spreaded onto
+    # other neighboring states.
+    self.trans_prob = trans_prob
 
-    def __str__(self):
-        return "Gridworld({}, {}, {})".format(self.grid_size, self.wind,
-                                              self.discount)
+  def show_grid(self):
+    for i in range(len(self.grid)):
+      print self.grid[i]
 
-    def feature_vector(self, i, feature_map="ident"):
-        """
-        Get the feature vector associated with a state integer.
+  def get_grid(self):
+    return self.grid
 
-        i: State int.
-        feature_map: Which feature map to use (default ident). String in {ident,
-            coord, proxi}.
-        -> Feature vector.
-        """
+  def get_states(self):
+    """
+    returns
+      a list of all states
+    """
+    return filter(
+        lambda x: self.grid[x[0]][x[1]] != 'x',
+        [(i, j) for i in range(self.height) for j in range(self.width)])
 
-        if feature_map == "coord":
-            f = np.zeros(self.grid_size)
-            x, y = i % self.grid_size, i // self.grid_size
-            f[x] += 1
-            f[y] += 1
-            return f
-        if feature_map == "proxi":
-            f = np.zeros(self.n_states)
-            x, y = i % self.grid_size, i // self.grid_size
-            for b in range(self.grid_size):
-                for a in range(self.grid_size):
-                    dist = abs(x - a) + abs(y - b)
-                    f[self.point_to_int((a, b))] = dist
-            return f
-        # Assume identity map.
-        f = np.zeros(self.n_states)
-        f[i] = 1
-        return f
+  def get_actions(self, state):
+    """
+    get all the actions that can be takens on the current state
+    returns
+      a list of actions
+    """
+    if self.grid[state[0]][state[1]] == 'x':
+      return [4]
 
-    def feature_matrix(self, feature_map="ident"):
-        """
-        Get the feature matrix for this gridworld.
+    actions = []
+    for i in range(len(self.actions) - 1):
+      inc = self.neighbors[i]
+      a = self.actions[i]
+      nei_s = (state[0] + inc[0], state[1] + inc[1])
+      if nei_s[0] >= 0 and nei_s[0] < self.height and nei_s[1] >= 0 and nei_s[
+              1] < self.width and self.grid[nei_s[0]][nei_s[1]] != 'x':
+        actions.append(a)
+    return actions
 
-        feature_map: Which feature map to use (default ident). String in {ident,
-            coord, proxi}.
-        -> NumPy array with shape (n_states, d_states).
-        """
+  def __get_action_states(self, state):
+    """
+    get all the actions that can be takens on the current state
+    returns
+      a list of (action, state) pairs
+    """
+    a_s = []
+    for i in range(len(self.actions)):
+      inc = self.neighbors[i]
+      a = self.actions[i]
+      nei_s = (state[0] + inc[0], state[1] + inc[1])
+      if nei_s[0] >= 0 and nei_s[0] < self.height and nei_s[1] >= 0 and nei_s[
+              1] < self.width and self.grid[nei_s[0]][nei_s[1]] != 'x':
+        a_s.append((a, nei_s))
+    return a_s
 
-        features = []
-        for n in range(self.n_states):
-            f = self.feature_vector(n, feature_map)
-            features.append(f)
-        return np.array(features)
+  def get_reward_sas(self, state, action, state1):
+    """
+    args
+      state     current state
+      action    action
+      state1    next state
+    returns
+      the reward on current state
+    """
+    if not self.grid[state[0]][state[1]] == 'x':
+      return float(self.grid[state[0]][state[1]])
+    else:
+      return 0
 
-    def int_to_point(self, i):
-        """
-        Convert a state int into the corresponding coordinate.
+  def get_reward(self, state):
+    """
+    returns
+      the reward on current state
+    """
+    if not self.grid[state[0]][state[1]] == 'x':
+      return float(self.grid[state[0]][state[1]])
+    else:
+      return 0
 
-        i: State int.
-        -> (x, y) int tuple.
-        """
+  def get_transition_states_and_probs(self, state, action):
+    """
+    get all the possible transition states and their probabilities with [action] on [state]
+    args
+      state     (y, x)
+      action    int
+    returns
+      a list of (state, probability) pair
+    """
+    if self.is_terminal(tuple(state)):
+      return [(tuple(state), 1)]
 
-        return (i % self.grid_size, i // self.grid_size)
+    if self.trans_prob == 1:
+      inc = self.neighbors[action]
+      nei_s = (state[0] + inc[0], state[1] + inc[1])
+      if nei_s[0] >= 0 and nei_s[0] < self.height and nei_s[
+              1] >= 0 and nei_s[1] < self.width and self.grid[nei_s[0]][nei_s[1]] != 'x':
+        return [(nei_s, 1)]
+      else:
+        # if the state is invalid, stay in the current state
+        return [(state, 1)]
+    else:
+      # [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)]
+      mov_probs = np.zeros([self.n_actions])
+      mov_probs[action] = self.trans_prob
+      mov_probs += (1-self.trans_prob)/self.n_actions
 
-    def point_to_int(self, p):
-        """
-        Convert a coordinate into the corresponding state int.
+      for a in range(self.n_actions):
+        inc = self.neighbors[a]
+        nei_s = (state[0] + inc[0], state[1] + inc[1])
+        if nei_s[0] < 0 or nei_s[0] >= self.height or \
+           nei_s[1] < 0 or nei_s[1] >= self.width or self.grid[nei_s[0]][nei_s[1]] == 'x':
+          # if the move is invalid, accumulates the prob to the current state
+          mov_probs[self.n_actions-1] += mov_probs[a]
+          mov_probs[a] = 0
 
-        p: (x, y) tuple.
-        -> State int.
-        """
+      res = []
+      for a in range(self.n_actions):
+        if mov_probs[a] != 0:
+          inc = self.neighbors[a]
+          nei_s = (state[0] + inc[0], state[1] + inc[1])
+          res.append((nei_s, mov_probs[a]))
+      return res
 
-        return p[0] + p[1]*self.grid_size
 
-    def neighbouring(self, i, k):
-        """
-        Get whether two points neighbour each other. Also returns true if they
-        are the same point.
+  def is_terminal(self, state):
+    """
+    returns
+      True if the [state] is terminal
+    """
+    if tuple(state) in self.terminals:
+      return True
+    else:
+      return False
 
-        i: (x, y) int tuple.
-        k: (x, y) int tuple.
-        -> bool.
-        """
+  ##############################################
+  # Stateful Functions For Model-Free Leanring #
+  ##############################################
 
-        return abs(i[0] - k[0]) + abs(i[1] - k[1]) <= 1
+  def reset(self, start_pos):
+    """
+    Reset the gridworld for model-free learning. It assumes only 1 agent in the gridworld.
+    args
+      start_pos     (i,j) pair of the start location
+    """
+    self._cur_state = start_pos
 
-    def _transition_probability(self, i, j, k):
-        """
-        Get the probability of transitioning from state i to state k given
-        action j.
+  def get_current_state(self):
+    return self._cur_state
 
-        i: State int.
-        j: Action int.
-        k: State int.
-        -> p(s_k | s_i, a_j)
-        """
+  def step(self, action):
+    """
+    Step function for the agent to interact with gridworld
+    args
+      action        action taken by the agent
+    returns
+      current_state current state
+      action        input action
+      next_state    next_state
+      reward        reward on the next state
+      is_done       True/False - if the agent is already on the terminal states
+    """
+    if self.is_terminal(self._cur_state):
+      self._is_done = True
+      return self._cur_state, action, self._cur_state, self.get_reward(self._cur_state), True
 
-        xi, yi = self.int_to_point(i)
-        xj, yj = self.actions[j]
-        xk, yk = self.int_to_point(k)
+    st_prob = self.get_transition_states_and_probs(self._cur_state, action)
 
-        if not self.neighbouring((xi, yi), (xk, yk)):
-            return 0.0
+    sampled_idx = np.random.choice(np.arange(0, len(st_prob)), p=[prob for st, prob in st_prob])
+    last_state = self._cur_state
+    next_state = st_prob[sampled_idx][0]
+    reward = self.get_reward(last_state)
+    self._cur_state = next_state
+    return last_state, action, next_state, reward, False
 
-        # Is k the intended state to move to?
-        if (xi + xj, yi + yj) == (xk, yk):
-            return 1 - self.wind + self.wind/self.n_actions
+  ###########################################
+  # Policy Evaluation for Model-free Agents #
+  ###########################################
 
-        # If these are not the same point, then we can move there by wind.
-        if (xi, yi) != (xk, yk):
-            return self.wind/self.n_actions
+  def get_optimal_policy(self, agent):
+    states = self.get_states()
+    policy = {}
+    for s in states:
+      policy[s] = [(agent.get_optimal_action(s), 1)]
+    return policy
 
-        # If these are the same point, we can only move here by either moving
-        # off the grid or being blown off the grid. Are we on a corner or not?
-        if (xi, yi) in {(0, 0), (self.grid_size-1, self.grid_size-1),
-                        (0, self.grid_size-1), (self.grid_size-1, 0)}:
-            # Corner.
-            # Can move off the edge in two directions.
-            # Did we intend to move off the grid?
-            if not (0 <= xi + xj < self.grid_size and
-                    0 <= yi + yj < self.grid_size):
-                # We intended to move off the grid, so we have the regular
-                # success chance of staying here plus an extra chance of blowing
-                # onto the *other* off-grid square.
-                return 1 - self.wind + 2*self.wind/self.n_actions
-            else:
-                # We can blow off the grid in either direction only by wind.
-                return 2*self.wind/self.n_actions
-        else:
-            # Not a corner. Is it an edge?
-            if (xi not in {0, self.grid_size-1} and
-                yi not in {0, self.grid_size-1}):
-                # Not an edge.
-                return 0.0
+  def get_values(self, agent):
+    states = self.get_states()
+    values = {}
+    for s in states:
+      values[s] = agent.get_value(s)
+    return values
 
-            # Edge.
-            # Can only move off the edge in one direction.
-            # Did we intend to move off the grid?
-            if not (0 <= xi + xj < self.grid_size and
-                    0 <= yi + yj < self.grid_size):
-                # We intended to move off the grid, so we have the regular
-                # success chance of staying here.
-                return 1 - self.wind + self.wind/self.n_actions
-            else:
-                # We can blow off the grid only by wind.
-                return self.wind/self.n_actions
+  def get_qvalues(self, agent):
+    states = self.get_states()
+    q_values = {}
+    for s in states:
+      for a in self.get_actions(s):
+        q_values[(s, a)] = agent.get_qvalue(s, a)
+    return q_values
 
-    def reward(self, state_int):
-        """
-        Reward for being in state state_int.
+  ###################################
+  # For Display in the command line #
+  ###################################
 
-        state_int: State integer. int.
-        -> Reward.
-        """
+  def display_qvalue_grid(self, qvalues):
+    print "==Display q-value grid=="
 
-        if state_int == self.n_states - 1:
-            return 1
-        return 0
+    qvalues_grid = np.empty((len(self.grid), len(self.grid[0])), dtype=object)
+    for s in self.get_states():
+      if self.grid[s[0]][s[1]] == 'x':
+        qvalues_grid[s[0]][s[1]] = '-'
+      else:
+        tmp_str = ""
+        for a in self.get_actions(s):
+          tmp_str = tmp_str + self.dirs[a]
+          tmp_str = tmp_str + str(' {:.2f} '.format(qvalues[(s, a)]))
+          # print tmp_str
+        qvalues_grid[s[0]][s[1]] = tmp_str
 
-    def average_reward(self, n_trajectories, trajectory_length, policy):
-        """
-        Calculate the average total reward obtained by following a given policy
-        over n_paths paths.
+    row_format = '{:>40}' * (len(self.grid[0]))
+    for row in qvalues_grid:
+      print row_format.format(*row)
 
-        policy: Map from state integers to action integers.
-        n_trajectories: Number of trajectories. int.
-        trajectory_length: Length of an episode. int.
-        -> Average reward, standard deviation.
-        """
+  def display_value_grid(self, values):
+    """
+    Prints a nice table of the values in grid
+    """
+    print "==Display value grid=="
 
-        trajectories = self.generate_trajectories(n_trajectories,
-                                             trajectory_length, policy)
-        rewards = [[r for _, _, r in trajectory] for trajectory in trajectories]
-        rewards = np.array(rewards)
+    value_grid = np.zeros((len(self.grid), len(self.grid[0])))
+    for k in values:
+      value_grid[k[0]][k[1]] = float(values[k])
 
-        # Add up all the rewards to find the total reward.
-        total_reward = rewards.sum(axis=1)
+    row_format = '{:>20.4}' * (len(self.grid[0]))
+    for row in value_grid:
+      print row_format.format(*row)
 
-        # Return the average reward and standard deviation.
-        return total_reward.mean(), total_reward.std()
+  def display_policy_grid(self, policy):
+    """
+    prints a nice table of the policy in grid
+    input:
+      policy    a dictionary of the optimal policy {<state, action_dist>}
+    """
+    print "==Display policy grid=="
 
-    def optimal_policy(self, state_int):
-        """
-        The optimal policy for this gridworld.
+    policy_grid = np.chararray((len(self.grid), len(self.grid[0])))
+    for k in self.get_states():
+      if self.is_terminal((k[0], k[1])) or self.grid[k[0]][k[1]] == 'x':
+        policy_grid[k[0]][k[1]] = '-'
+      else:
+        # policy_grid[k[0]][k[1]] = self.dirs[agent.get_action((k[0], k[1]))]
+        policy_grid[k[0]][k[1]] = self.dirs[policy[(k[0], k[1])][0][0]]
 
-        state_int: What state we are in. int.
-        -> Action int.
-        """
+    row_format = '{:>20}' * (len(self.grid[0]))
+    for row in policy_grid:
+      print row_format.format(*row)
 
-        sx, sy = self.int_to_point(state_int)
+  #######################
+  # Some util functions #
+  #######################
 
-        if sx < self.grid_size and sy < self.grid_size:
-            return rn.randint(0, 2)
-        if sx < self.grid_size-1:
-            return 0
-        if sy < self.grid_size-1:
-            return 1
-        raise ValueError("Unexpected state.")
+  def get_transition_mat(self):
+    """
+    get transition dynamics of the gridworld
 
-    def optimal_policy_deterministic(self, state_int):
-        """
-        Deterministic version of the optimal policy for this gridworld.
+    return:
+      P_a         NxNxN_ACTIONS transition probabilities matrix - 
+                    P_a[s0, s1, a] is the transition prob of 
+                    landing at state s1 when taking action 
+                    a at state s0
+    """
+    N_STATES = self.height*self.width
+    N_ACTIONS = len(self.actions)
+    P_a = np.zeros((N_STATES, N_STATES, N_ACTIONS))
+    for si in range(N_STATES):
+      posi = self.idx2pos(si)
+      for a in range(N_ACTIONS):
+        probs = self.get_transition_states_and_probs(posi, a)
 
-        state_int: What state we are in. int.
-        -> Action int.
-        """
+        for posj, prob in probs:
+          sj = self.pos2idx(posj)
+          # Prob of si to sj given action a
+          P_a[si, sj, a] = prob
+    return P_a
 
-        sx, sy = self.int_to_point(state_int)
-        if sx < sy:
-            return 0
-        return 1
+  def get_values_mat(self, values):
+    """
+    inputs:
+      values: a dictionary {<state, value>}
+    """
+    shape = np.shape(self.grid)
+    v_mat = np.zeros(shape)
+    for i in range(shape[0]):
+      for j in range(shape[1]):
+        v_mat[i, j] = values[(i, j)]
+    return v_mat
 
-    def generate_trajectories(self, n_trajectories, trajectory_length, policy,
-                                    random_start=False):
-        """
-        Generate n_trajectories trajectories with length trajectory_length,
-        following the given policy.
+  def get_reward_mat(self):
+    """
+    Get reward matrix from gridworld
+    """
+    shape = np.shape(self.grid)
+    r_mat = np.zeros(shape)
+    for i in range(shape[0]):
+      for j in range(shape[1]):
+        r_mat[i, j] = float(self.grid[i][j])
+    return r_mat
 
-        n_trajectories: Number of trajectories. int.
-        trajectory_length: Length of an episode. int.
-        policy: Map from state integers to action integers.
-        random_start: Whether to start randomly (default False). bool.
-        -> [[(state int, action int, reward float)]]
-        """
+  def pos2idx(self, pos):
+    """
+    input:
+      column-major 2d position
+    returns:
+      1d index
+    """
+    return pos[0] + pos[1] * self.height
 
-        trajectories = []
-        for _ in range(n_trajectories):
-            if random_start:
-                sx, sy = rn.randint(self.grid_size), rn.randint(self.grid_size)
-            else:
-                sx, sy = 0, 0
-
-            trajectory = []
-            for _ in range(trajectory_length):
-                if rn.random() < self.wind:
-                    action = self.actions[rn.randint(0, 4)]
-                else:
-                    # Follow the given policy.
-                    action = self.actions[policy(self.point_to_int((sx, sy)))]
-
-                if (0 <= sx + action[0] < self.grid_size and
-                        0 <= sy + action[1] < self.grid_size):
-                    next_sx = sx + action[0]
-                    next_sy = sy + action[1]
-                else:
-                    next_sx = sx
-                    next_sy = sy
-
-                state_int = self.point_to_int((sx, sy))
-                action_int = self.actions.index(action)
-                next_state_int = self.point_to_int((next_sx, next_sy))
-                reward = self.reward(next_state_int)
-                trajectory.append((state_int, action_int, reward))
-
-                sx = next_sx
-                sy = next_sy
-
-            trajectories.append(trajectory)
-
-        return np.array(trajectories)
+  def idx2pos(self, idx):
+    """
+    input:
+      1d idx
+    returns:
+      2d column-major position
+    """
+    return (idx % self.height, idx / self.height)

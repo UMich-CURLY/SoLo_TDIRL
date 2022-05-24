@@ -1,0 +1,7 @@
+.DS_Store
+*.pyc
+tmp/*
+*logs/
+papers/*
+cartpole/cartpole-model/history.p
+cartpole/cartpole-model/memory.p
