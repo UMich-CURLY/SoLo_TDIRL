@@ -86,5 +86,5 @@ class IRL_Agent():
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
-    # irl_agent.deep_irl()
+    irl_agent.deep_irl()
     # irl_agent.read_csv()

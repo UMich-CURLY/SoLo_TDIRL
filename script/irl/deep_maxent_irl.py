@@ -218,8 +218,8 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 '''
   # tf.set_random_seed(1)
   # Just for testing
-  feat_maps = feat_maps[:1]
-  trajs = trajs[:1]
+  # feat_maps = feat_maps[:1]
+  # trajs = trajs[:1]
 
 
   N_STATES, _, N_ACTIONS = np.shape(P_a)

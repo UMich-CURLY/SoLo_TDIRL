@@ -31,6 +31,8 @@ class FeatureExpect():
         self.tf_listener =  tf.TransformListener()
         self.feature_maps = []
         self.trajs = []
+        self.fm_dict = {} 
+        self.traj_dict = {} 
 
         # self.pose_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.get_robot_pose, queue_size=1)
 
@@ -158,36 +160,27 @@ if __name__ == "__main__":
         data.pose.position.x = 6
         data.pose.position.y = -6
         data.header.frame_id = "/map"
-        feature = FeatureExpect(goal=data)
+        feature = FeatureExpect(goal=data, resolution=0.5)
 
         # fm_file = TemporaryFile()
         fm_file = "./fm.npz"
         traj_file = "./trajs.npz"
         def task(id):
             feature.get_expect(fm_file)
-        # threads = []
-        # for n in range(1, 11):
-        #     t = Thread(target=task, args=(n,))
-        #     threads.append(t)
-        #     t.start()
-        #     rospy.sleep(0.3)
-
-        # for t in threads:
-        #     t.join()
         
         while(not rospy.is_shutdown()):
-            # feature.get_expect(fm_file)
+            feature.get_expect(fm_file)
             # np.savez(fm_file, *feature.feature_maps)
             # np.savez(traj_file, *feature.trajs)
-            threads = []
-            for n in range(1, 11):
-                t = Thread(target=task, args=(n,))
-                threads.append(t)
-                t.start()
-                rospy.sleep(0.3)
+            # threads = []
+            # for n in range(1, 11):
+            #     t = Thread(target=task, args=(n,))
+            #     threads.append(t)
+            #     t.start()
+            #     rospy.sleep(0.3)
 
-            for t in threads:
-                t.join()
+            # for t in threads:
+            #     t.join()
             
             np.savez(fm_file, *feature.feature_maps)
             np.savez(traj_file, *feature.trajs)
