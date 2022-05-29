@@ -20,7 +20,9 @@ class DeepIRLFC:
 
     self.sess = tf.Session()
     self.input_s, self.reward, self.theta = self._build_network(self.name)
-    self.optimizer = tf.train.GradientDescentOptimizer(lr)
+    # self.optimizer = tf.train.GradientDescentOptimizer(lr)
+    self.optimizer = tf.train.AdamOptimizer(learning_rate=lr)
+
     
     self.grad_r = tf.placeholder(tf.float32, [None, 1])
     self.l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in self.theta])
@@ -237,8 +239,8 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
     # print(traj)
     mu_D = demo_svf(traj, N_STATES)
     for iteration in range(n_iters):
-      if iteration % (n_iters/10) == 0:
-        print 'iteration: {}'.format(iteration)
+      # if iteration % (n_iters/10) == 0:
+      #   print 'iteration: {}'.format(iteration)
       
       # compute the reward matrix
       
@@ -259,8 +261,15 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
       
 
   rewards = nn_r.get_rewards(feat_maps[0].T)
+  _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
-  print(np.array(normalize(rewards)).reshape(3,3))
+
+  dict = {0: 'r', 1: 'l', 2: 'd', 3: 'u', 4: 's'}
+  policy = [dict[i] for i in policy]
+  print(np.array(policy).reshape(3,3))
+
+  print(np.array(normalize(rewards)).reshape(1,9).reshape(3,3))
+
   return normalize(rewards)
 
 

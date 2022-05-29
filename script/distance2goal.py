@@ -1,3 +1,4 @@
+from cmath import exp
 from numpy import average
 import tf
 from math import sqrt, pow
@@ -24,22 +25,26 @@ class Distance2goal():
                 for y in range(self.gridsize[1]):
                     grid_center_x, grid_center_y = self.get_grid_center_position([x , y])
                     distance = sqrt(pow(grid_center_x - goal_in_base.pose.position.x, 2) + pow(grid_center_y - goal_in_base.pose.position.y, 2))
+                    # distance = exp(abs(distance))
                     result[y * self.gridsize[1] + x] = distance
         except:
             print("Do not get transform!")
 
+        max_distance = max(result)
+        min_distance = min(result)
 
-        ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
+        result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
+        # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
 
-        std_dev = np.std(result)
+        # std_dev = np.std(result)
 
-        for i in range(len(result)):
-            if(result[i] < ave_dis + std_dev and result[i] > ave_dis - std_dev):
-                result[i] = [0,1,0]
-            elif(result[i] > ave_dis + std_dev):
-                result[i] = [0,0,1]
-            else:
-                result[i] = [1,0,0]
+        # for i in range(len(result)):
+        #     if(result[i] < ave_dis + std_dev and result[i] > ave_dis - std_dev):
+        #         result[i] = [0,1,0]
+        #     elif(result[i] > ave_dis + std_dev):
+        #         result[i] = [0,0,1]
+        #     else:
+        #         result[i] = [1,0,0]
         return result
 
     def get_grid_center_position(self, index):
