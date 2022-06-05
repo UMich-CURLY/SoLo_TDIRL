@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
         # fm_file = TemporaryFile()
         fm_file = "../dataset/fm/fm.npz"
-        traj_file = "../dataset/trajectory/trajs.npz"
+        traj_file = "../dataset/trajs/trajs.npz"
         def task(id):
             feature.get_expect(fm_file)
         

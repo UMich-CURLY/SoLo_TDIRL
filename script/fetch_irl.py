@@ -27,40 +27,37 @@ class IRL_Agent():
         # Assume the grid is square.
         self.H = int(np.sqrt(self.N_STATE))
         self.W = int(np.sqrt(self.N_STATE))
-        self.ACT_RAND = 0
-        self.GAMMA = 0.99
+        self.ACT_RAND = 0.3
+        self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 5
+        self.N_ITERS = 50
 
-        
 
     def read_csv(self):
         # Get the feature map and trajectory.
         traj = []
-        for filename in os.listdir("../dataset/trajectory/"):
+        for filename in os.listdir("../dataset/trajs/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
 
-            with np.load(os.path.join("../dataset/trajectory", filename)) as data:
-                for i in range(len(data.files)):
-                    traj_name = 'arr_{}'.format(i)
-                    for j in range(len(data[traj_name]) - 1):
-                        traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
-                    self.trajs.append(traj)
-                    traj = []
+            with np.load(os.path.join("../dataset/trajs", filename)) as data:
+                file_fm_name = "fm" + number_str + ".npz"
+                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
+                    for i in range(len(data.files)):
+                        traj_name = 'arr_{}'.format(i)
+                        cur_traj_len = len(data[traj_name])
+                        if(cur_traj_len > 1):
+                            for j in range(len(data[traj_name]) - 1):
+                                traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                            self.trajs.append(traj)
+                            traj = []
+                    # for j in range(len(data2.files)):
+                            fm_name = 'arr_{}'.format(i)
+                            self.fms.append(data2[fm_name])
 
-
-
-            file_fm_name = "fm" + number_str + ".npz"
-            with np.load(os.path.join("../dataset/fm", file_fm_name)) as data:
-                for i in range(len(data.files)):
-                    fm_name = 'arr_{}'.format(i)
-                    self.fms.append(data[fm_name])
-
-        print(self.trajs)
         # print(len(self.fms))
         # print(len(self.trajs))
         # print(self.fms)
@@ -83,11 +80,12 @@ class IRL_Agent():
         '''
     def deep_irl(self):
         # feed the feature maps and traj into network and train.
-        rmap_gt = np.zeros([self.H, self.W])
+        rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
-
+        img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W), order='F'), 'Reward Map - Deep Maxent', block=False)
+        plt.show()
     def save_weight(self):
         pass
 

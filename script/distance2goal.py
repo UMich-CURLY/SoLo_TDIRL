@@ -34,6 +34,8 @@ class Distance2goal():
         min_distance = min(result)
 
         result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
+        # result = [[result[i]] for i in range(len(result))]
+
         # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
 
         # std_dev = np.std(result)
@@ -56,18 +58,20 @@ class Distance2goal():
 
 if __name__ == "__main__":
     rospy.init_node("distance2goal",anonymous=False)
-    distance2goal = Distance2goal(gridsize=(4,4), resolution=1)
+    distance2goal = Distance2goal(gridsize=(3,3), resolution=0.5)
+    rospy.sleep(1)
     while not rospy.is_shutdown():
         data = PoseStamped()
-        data.pose.position.x = 2
-        data.pose.position.y = 2
+        data.pose.position.x = 5
+        data.pose.position.y = -5
         data.pose.position.z = 0
         data.header.frame_id = "/map"
         result = distance2goal.get_feature_matrix(data)
-        print(result[:4])
-        print(result[4:8])
-        print(result[8:12])
-        print(result[12:16])
+        print(result[:3])
+        print(result[3:6])
+        print(result[6:9])
+        # print(result[12:16])
+        # print(result)
         print("------------------------")
 
 

@@ -31,11 +31,14 @@ class GridWorld(object):
 
     self.terminals = terminals
     self.grid = grid
-    self.neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)]
-    self.actions = [0, 1, 2, 3, 4]
+    # self.neighbors = [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)]
+    self.neighbors = [(1, 0), (-1, 0), (0, -1), (0, 0)]
+    # self.actions = [0, 1, 2, 3, 4]
+    self.actions = [0, 1, 2, 3]
     self.n_actions = len(self.actions)
     # self.dirs = {0: 's', 1: 'r', 2: 'l', 3: 'd', 4: 'u'}
-    self.dirs = {0: 'r', 1: 'l', 2: 'd', 3: 'u', 4: 's'}
+    # self.dirs = {0: 'r', 1: 'l', 2: 'd', 3: 'u', 4: 's'}
+    self.dirs = {0: 'r', 1: 'l', 2: 'u', 4: 's'}
     #              right,    left,   down,   up ,   stay
     # self.action_nei = {0: (0,1), 1:(0,-1), 2:(1,0), 3:(-1,0)}
 

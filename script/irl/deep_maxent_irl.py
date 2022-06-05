@@ -41,9 +41,9 @@ class DeepIRLFC:
   def _build_network(self, name):
     input_s = tf.placeholder(tf.float32, [None, self.n_input])
     with tf.variable_scope(name):
-      fc1 = tf_utils.fc(input_s, self.n_h1, scope="fc1", activation_fn=tf.nn.elu,
+      fc1 = tf_utils.fc(input_s, self.n_h1, scope="fc1", activation_fn=tf.nn.relu,
         initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
-      fc2 = tf_utils.fc(fc1, self.n_h2, scope="fc2", activation_fn=tf.nn.elu,
+      fc2 = tf_utils.fc(fc1, self.n_h2, scope="fc2", activation_fn=tf.nn.relu,
         initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
       reward = tf_utils.fc(fc2, 1, scope="reward")
     theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
@@ -175,7 +175,6 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
     # apply gradients to the neural network
     grad_theta, l2_loss, grad_norm = nn_r.apply_grads(feat_map, grad_r)
     
-
   rewards = nn_r.get_rewards(feat_map)
   # return sigmoid(normalize(rewards))
   return normalize(rewards)
@@ -220,8 +219,11 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 '''
   # tf.set_random_seed(1)
   # Just for testing
-  # feat_maps = feat_maps[:1]
-  # trajs = trajs[:1]
+  feat_maps = feat_maps[1:2]
+  trajs = trajs[1:2]
+  # feat_maps[:] = feat_maps[:][:2]
+  # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
+  # print(np.array(feat_maps[1]).T)
 
 
   N_STATES, _, N_ACTIONS = np.shape(P_a)
@@ -234,43 +236,62 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
   
   # training 
   # print(trajs)
-  for i in range(len(trajs)):
-    traj = [trajs[i]]
-    # print(traj)
-    mu_D = demo_svf(traj, N_STATES)
-    for iteration in range(n_iters):
-      # if iteration % (n_iters/10) == 0:
-      #   print 'iteration: {}'.format(iteration)
-      
-      # compute the reward matrix
-      
-      rewards = nn_r.get_rewards(feat_maps[i].T)
-      # print(rewards)
-      
-      # compute policy 
-      _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
-      
-      # compute expected svf
-      mu_exp = compute_state_visition_freq(P_a, gamma, traj, policy, deterministic=True)
-      
-      # compute gradients on rewards:
-      grad_r = mu_D - mu_exp
 
-      # apply gradients to the neural network
-      grad_theta, l2_loss, grad_norm = nn_r.apply_grads(feat_maps[i].T, grad_r)
-      
+  train_summary_writer = tf.summary.FileWriter("../logs1")
 
-  rewards = nn_r.get_rewards(feat_maps[0].T)
+  loss_summary = tf.Summary()
+
+  for j in range(1):
+
+    for i in range(len(trajs)):
+      traj = [trajs[i]]
+      # print(traj)
+      mu_D = demo_svf(traj, N_STATES)
+      for iteration in range(n_iters):
+      # while(l2_loss>1):
+        # if iteration % (n_iters/10) == 0:
+        #   print 'iteration: {}'.format(iteration)
+        
+        # compute the reward matrix
+        
+        rewards = nn_r.get_rewards(feat_maps[i].T)
+        # print(rewards)
+        # compute policy 
+        _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
+        
+        # compute expected svf
+        mu_exp = compute_state_visition_freq(P_a, gamma, traj, policy, deterministic=True)
+        
+        # compute gradients on rewards:
+        grad_r = mu_D - mu_exp
+
+        # apply gradients to the neural network
+        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(feat_maps[i].T, grad_r)
+
+        loss_summary.value.add(tag='loss', simple_value=l2_loss)
+        train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+        # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
+        print(l2_loss)
+        if(l2_loss < 1):
+          break
+        # with train_summary_writer.as_default():
+        #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
+        #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)
+
+      # print("Training %d  done" % i)
+  
+  print(trajs)
+  rewards =nn_r.get_rewards(feat_maps[0].T)
+
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
-
-  dict = {0: 'r', 1: 'l', 2: 'd', 3: 'u', 4: 's'}
+  dict = {0: 'r', 1: 'l', 2: 'u', 4: 's'}
   policy = [dict[i] for i in policy]
   print(np.array(policy).reshape(3,3))
 
-  print(np.array(normalize(rewards)).reshape(1,9).reshape(3,3))
+  print(np.array(rewards).reshape(3,3))
 
-  return normalize(rewards)
+  return rewards
 
 
 

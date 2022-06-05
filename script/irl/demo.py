@@ -85,7 +85,7 @@ def main():
   rmap_gt = np.zeros([H, W])
   rmap_gt[H-2, W-2] = R_MAX
   rmap_gt[1, 1] = R_MAX
-  # rmap_gt[H/2, W/2] = R_MAX
+  rmap_gt[H/2, W/2] = R_MAX
 
 
   gw = gridworld.GridWorld(rmap_gt, {}, 1 - ACT_RAND)
