@@ -219,8 +219,8 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 '''
   # tf.set_random_seed(1)
   # Just for testing
-  feat_maps = feat_maps[1:2]
-  trajs = trajs[1:2]
+  feat_maps = feat_maps[:1]
+  trajs = trajs[:1]
   # feat_maps[:] = feat_maps[:][:2]
   # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
   # print(np.array(feat_maps[1]).T)
@@ -241,7 +241,7 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 
   loss_summary = tf.Summary()
 
-  for j in range(1):
+  for j in range(2):
 
     for i in range(len(trajs)):
       traj = [trajs[i]]
@@ -292,8 +292,3 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
   print(np.array(rewards).reshape(3,3))
 
   return rewards
-
-
-
-
-

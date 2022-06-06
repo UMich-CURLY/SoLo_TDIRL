@@ -2,7 +2,7 @@
 #include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib/client/simple_action_client.h>
 #include <string>
-#include <std_msgs/String.msg>
+#include <std_msgs/String.h>
 
 /*
 Painting1: Position(5.953, -1.314, 0.000), Orientation(0.000, 0.000, -0.230, 0.973) = Angle: -0.464
@@ -12,19 +12,6 @@ Painting4: Position(0.245, -1.690, 0.000), Orientation(0.000, 0.000, 0.876, -0.4
 */
 
 typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
-
-
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "navigate2goals");
-  ros::NodeHandle n;
-
-  ros::Subscriber sub = n.subscribe("audio", 1000, audiocallback);
-  ROS_INFO("Ready to add two ints.");
-  ros::spin();
-
-  return 0;
-}
 
 
 void audiocallback(std_msgs::String audio){
@@ -89,6 +76,18 @@ void audiocallback(std_msgs::String audio){
     ROS_INFO("Hooray, the base moved 1 meter forward");
   else
     ROS_INFO("The base failed to move forward 1 meter for some reason");
+}
+
+
+
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "navigate2goals");
+  ros::NodeHandle n;
+
+  ros::Subscriber sub = n.subscribe("audio", 1000, audiocallback);
+  ROS_INFO("Ready to add two ints.");
+  ros::spin();
 
   return 0;
 }
