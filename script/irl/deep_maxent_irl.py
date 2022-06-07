@@ -7,6 +7,19 @@ import tf_utils
 from utils import *
 
 
+class Loaded_Model:
+  def __init__(self):
+    self.sess = tf.Session()
+    self.load_weights()
+    
+
+
+  def load_weights(self):
+  # with tf.Session() as sess:
+    new_saver = tf.train.import_meta_graph('../weights/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights/'))
+
+
 
 class DeepIRLFC:
 
@@ -36,6 +49,7 @@ class DeepIRLFC:
     self.grad_norms = tf.global_norm(self.grad_theta)
     self.optimize = self.optimizer.apply_gradients(zip(self.grad_theta, self.theta))
     self.sess.run(tf.global_variables_initializer())
+    self.saver = tf.train.Saver()
 
 
   def _build_network(self, name):
@@ -47,11 +61,14 @@ class DeepIRLFC:
         initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
       reward = tf_utils.fc(fc2, 1, scope="reward")
     theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
+
     return input_s, reward, theta
 
 
   def get_theta(self):
-    return self.sess.run(self.theta)
+    theta = self.sess.run(self.theta)
+    self.saver.save(self.sess, "../weights/saved_weights")
+    return theta
 
 
   def get_rewards(self, states):
@@ -66,7 +83,13 @@ class DeepIRLFC:
       feed_dict={self.grad_r: grad_r, self.input_s: feat_map})
     return grad_theta, l2_loss, grad_norms
 
+  def load_weights(self):
+    # with tf.Session() as sess:
+    new_saver = tf.train.import_meta_graph('../weights/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights/'))
 
+  # def save_weights(self):
+  #   self.theta.
 
 def compute_state_visition_freq(P_a, gamma, trajs, policy, deterministic=True):
   """compute the expected states visition frequency p(s| theta, T) 
@@ -156,7 +179,7 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
   mu_D = demo_svf(trajs, N_STATES)
   for iteration in range(n_iters):
     if iteration % (n_iters/10) == 0:
-      print 'iteration: {}'.format(iteration)
+      print('iteration: {}'.format(iteration))
     
     # compute the reward matrix
     rewards = nn_r.get_rewards(feat_map)
@@ -281,6 +304,8 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
       # print("Training %d  done" % i)
   
   print(trajs)
+
+
   rewards =nn_r.get_rewards(feat_maps[0].T)
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
@@ -291,4 +316,34 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 
   print(np.array(rewards).reshape(3,3))
 
+  weight = nn_r.get_theta()
+
+  print("weight is ", weight)
+
   return rewards
+
+
+
+def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
+  # print(N_STATES, N_ACTIONS)
+
+  # init nn model
+
+  rewards =nn_r.get_rewards(feat_maps.T)
+
+  _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
+  # return sigmoid(normalize(rewards))
+  dict = {0: 'r', 1: 'l', 2: 'u', 4: 's'}
+  policy = [dict[i] for i in policy]
+
+  # print(np.array(policy).reshape(3,3))
+
+  # print(np.array(rewards).reshape(3,3))
+
+  # weight = nn_r.get_theta()
+
+  # print("weight is ", weight)
+
+  return rewards, policy
+
+

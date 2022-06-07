@@ -5,6 +5,7 @@ from collections import namedtuple
 
 import sys
 import os
+
 sys.path.append(os.path.abspath('./irl/'))
 
 import img_utils
@@ -78,7 +79,7 @@ class IRL_Agent():
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0]])]
         '''
-    def deep_irl(self):
+    def train(self):
         # feed the feature maps and traj into network and train.
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
@@ -86,8 +87,16 @@ class IRL_Agent():
         rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
-    def save_weight(self):
-        pass
+
+    
+    def test(self):
+        rmap_gt = np.ones([self.H, self.W])
+        gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
+        P_a = gw.get_transition_mat()
+        rewards, policy = get_irl_reward_policy(self.fms[0], P_a)
+        print(self.fms[0].shape)
+        img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
+        plt.show()
 
     def eval(self):
         pass
@@ -95,5 +104,5 @@ class IRL_Agent():
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
-    irl_agent.deep_irl()
+    irl_agent.test()
     # irl_agent.read_csv()

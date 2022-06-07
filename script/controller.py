@@ -112,7 +112,7 @@ if __name__ == "__main__":
             ['r', 'r', 'u'],
             ['u', 'u', 'u']]
 
-    controller = PathPublisher(policy=policy, resolution=2)
+    controller = PathPublisher(policy=policy, resolution=0.5)
 
     # controller.irl_path.header.frame_id = '/map'
     controller.get_irl_path()       
