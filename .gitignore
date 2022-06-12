@@ -1,0 +1,11 @@
+*.rar
+*.avi
+*.vsp
+*.txt
+*.mat
+*.m
+*.png
+*.pyc
+*.cpkl
+*.backup
+test.py
