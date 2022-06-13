@@ -9,8 +9,11 @@ from social_model import SocialModel
 from social_utils import SocialDataLoader
 from grid import getSequenceGridMask
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"#GPU_ID from earlier
+
 config = tf.ConfigProto()
-config.gpu_options.visible_device_list = "0"
+# config.gpu_options.visible_device_list = "0"
 
 def main():
     parser = argparse.ArgumentParser()
@@ -85,7 +88,7 @@ def train(args):
     model = SocialModel(args)
 
     # Initialize a TensorFlow session
-    with tf.Session(config = tf.ConfigProto(device_count = {'GPU': 0})) as sess:
+    with tf.Session(config = config) as sess:
         # Initialize all variables in the graph
         sess.run(tf.initialize_all_variables())
         # Initialize a saver that saves all the variables in the graph
