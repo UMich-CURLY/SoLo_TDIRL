@@ -1,0 +1,3 @@
+model_checkpoint_path: "social_model.ckpt-800"
+all_model_checkpoint_paths: "social_model.ckpt-400"
+all_model_checkpoint_paths: "social_model.ckpt-800"
