@@ -72,26 +72,26 @@ class SocialModel():
         # Define LSTM states for each pedestrian
         with tf.variable_scope("LSTM_states"):
             self.LSTM_states = tf.zeros([args.maxNumPeds, cell.state_size], name="LSTM_states")
-            self.initial_states = tf.split(0, args.maxNumPeds, self.LSTM_states)
+            self.initial_states = tf.split(self.LSTM_states, args.maxNumPeds, 0)
 
         # Define hidden output states for each pedestrian
         with tf.variable_scope("Hidden_states"):
             # self.output_states = tf.zeros([args.maxNumPeds, cell.output_size], name="hidden_states")
-            self.output_states = tf.split(0, args.maxNumPeds, tf.zeros([args.maxNumPeds, cell.output_size]))
+            self.output_states = tf.split(tf.zeros([args.maxNumPeds, cell.output_size]), args.maxNumPeds,0 )
 
         # List of tensors each of shape args.maxNumPedsx3 corresponding to each frame in the sequence
         with tf.name_scope("frame_data_tensors"):
             # frame_data = tf.split(0, args.seq_length, self.input_data, name="frame_data")
-            frame_data = [tf.squeeze(input_, [0]) for input_ in tf.split(0, args.seq_length, self.input_data)]
+            frame_data = [tf.squeeze(input_, [0]) for input_ in tf.split(self.input_data, args.seq_length,0 )]
 
         with tf.name_scope("frame_target_data_tensors"):
             # frame_target_data = tf.split(0, args.seq_length, self.target_data, name="frame_target_data")
-            frame_target_data = [tf.squeeze(target_, [0]) for target_ in tf.split(0, args.seq_length, self.target_data)]
+            frame_target_data = [tf.squeeze(target_, [0]) for target_ in tf.split(self.target_data, args.seq_length, 0)]
 
         with tf.name_scope("grid_frame_data_tensors"):
             # This would contain a list of tensors each of shape MNP x MNP x (GS**2) encoding the mask
             # grid_frame_data = tf.split(0, args.seq_length, self.grid_data, name="grid_frame_data")
-            grid_frame_data = [tf.squeeze(input_, [0]) for input_ in tf.split(0, args.seq_length, self.grid_data)]
+            grid_frame_data = [tf.squeeze(input_, [0]) for input_ in tf.split(self.grid_data, args.seq_length,0 )]
 
         # Cost
         with tf.name_scope("Cost_related_stuff"):
@@ -102,7 +102,7 @@ class SocialModel():
         # Containers to store output distribution parameters
         with tf.name_scope("Distribution_parameters_stuff"):
             # self.initial_output = tf.zeros([args.maxNumPeds, self.output_size], name="distribution_parameters")
-            self.initial_output = tf.split(0, args.maxNumPeds, tf.zeros([args.maxNumPeds, self.output_size]))
+            self.initial_output = tf.split(tf.zeros([args.maxNumPeds, self.output_size]), args.maxNumPeds,0 )
 
         # Tensor to represent non-existent ped
         with tf.name_scope("Non_existent_ped_stuff"):
@@ -138,7 +138,7 @@ class SocialModel():
 
                 with tf.name_scope("concatenate_embeddings"):
                     # Concatenate the embeddings
-                    complete_input = tf.concat(1, [embedded_spatial_input, embedded_tensor_input])
+                    complete_input = tf.concat(axis=1, values=[embedded_spatial_input, embedded_tensor_input])
 
                 # One step of LSTM
                 with tf.variable_scope("LSTM") as scope:
@@ -162,7 +162,7 @@ class SocialModel():
                 with tf.name_scope("extract_target_ped"):
                     # Extract x and y coordinates of the target data
                     # x_data and y_data would be tensors of shape 1 x 1
-                    [x_data, y_data] = tf.split(1, 2, tf.slice(frame_target_data[seq], [ped, 1], [1, 2]))
+                    [x_data, y_data] = tf.split(tf.slice(frame_target_data[seq], [ped, 1], [1, 2]), 2, 1)
 
                 with tf.name_scope("get_coef"):
                     # Extract coef from output of the linear output layer
@@ -174,8 +174,8 @@ class SocialModel():
 
                 with tf.name_scope("increment_cost"):
                     # If it is a non-existent ped, it should not contribute to cost
-                    self.cost = tf.select(tf.equal(pedID, nonexistent_ped), self.cost, tf.add(self.cost, lossfunc))
-                    self.counter = tf.select(tf.not_equal(pedID, nonexistent_ped), tf.add(self.counter, self.increment), self.counter)
+                    self.cost = tf.where(tf.equal(pedID, nonexistent_ped), self.cost, tf.add(self.cost, lossfunc))
+                    self.counter = tf.where(tf.not_equal(pedID, nonexistent_ped), tf.add(self.counter, self.increment), self.counter)
 
         with tf.name_scope("mean_cost"):
             # Mean of the cost
@@ -185,7 +185,7 @@ class SocialModel():
         tvars = tf.trainable_variables()
 
         # Get the final LSTM states
-        self.final_states = tf.concat(0, self.initial_states)
+        self.final_states = tf.concat(axis=0, values=self.initial_states)
 
         # Get the final distribution parameters
         self.final_output = self.initial_output
@@ -236,17 +236,17 @@ class SocialModel():
         # eq 3 in the paper
         # and eq 24 & 25 in Graves (2013)
         # Calculate (x - mux) and (y-muy)
-        normx = tf.sub(x, mux)
-        normy = tf.sub(y, muy)
+        normx = tf.subtract(x, mux)
+        normy = tf.subtract(y, muy)
         # Calculate sx*sy
-        sxsy = tf.mul(sx, sy)
+        sxsy = tf.multiply(sx, sy)
         # Calculate the exponential factor
-        z = tf.square(tf.div(normx, sx)) + tf.square(tf.div(normy, sy)) - 2*tf.div(tf.mul(rho, tf.mul(normx, normy)), sxsy)
+        z = tf.square(tf.div(normx, sx)) + tf.square(tf.div(normy, sy)) - 2*tf.div(tf.multiply(rho, tf.multiply(normx, normy)), sxsy)
         negRho = 1 - tf.square(rho)
         # Numerator
         result = tf.exp(tf.div(-z, 2*negRho))
         # Normalization constant
-        denom = 2 * np.pi * tf.mul(sxsy, tf.sqrt(negRho))
+        denom = 2 * np.pi * tf.multiply(sxsy, tf.sqrt(negRho))
         # Final PDF calculation
         result = tf.div(result, denom)
         return result
@@ -273,7 +273,7 @@ class SocialModel():
         result0_4 = self.tf_2d_normal(tf.add(x_data, step), tf.add(y_data, step), z_mux, z_muy, z_sx, z_sy, z_corr)
 
         result0 = tf.div(tf.add(tf.add(tf.add(result0_1, result0_2), result0_3), result0_4), tf.constant(4.0, dtype=tf.float32, shape=(1, 1)))
-        result0 = tf.mul(tf.mul(result0, step), step)
+        result0 = tf.multiply(tf.multiply(result0, step), step)
 
         # For numerical stability purposes
         epsilon = 1e-20
@@ -289,7 +289,7 @@ class SocialModel():
 
         z = output
         # Split the output into 5 parts corresponding to means, std devs and corr
-        z_mux, z_muy, z_sx, z_sy, z_corr = tf.split(1, 5, z)
+        z_mux, z_muy, z_sx, z_sy, z_corr = tf.split(z, 5, 1)
 
         # The output must be exponentiated for the std devs
         z_sx = tf.exp(z_sx)
@@ -309,12 +309,12 @@ class SocialModel():
         # Create a zero tensor of shape MNP x (GS**2) x RNN_size
         social_tensor = tf.zeros([self.args.maxNumPeds, self.grid_size*self.grid_size, self.rnn_size], name="social_tensor")
         # Create a list of zero tensors each of shape 1 x (GS**2) x RNN_size of length MNP
-        social_tensor = tf.split(0, self.args.maxNumPeds, social_tensor)
+        social_tensor = tf.split(social_tensor, self.args.maxNumPeds, 0)
         # Concatenate list of hidden states to form a tensor of shape MNP x RNN_size
         hidden_states = tf.concat(0, output_states)
         # Split the grid_frame_data into grid_data for each pedestrians
         # Consists of a list of tensors each of shape 1 x MNP x (GS**2) of length MNP
-        grid_frame_ped_data = tf.split(0, self.args.maxNumPeds, grid_frame_data)
+        grid_frame_ped_data = tf.split(grid_frame_data, self.args.maxNumPeds,0 )
         # Squeeze tensors to form MNP x (GS**2) matrices
         grid_frame_ped_data = [tf.squeeze(input_, [0]) for input_ in grid_frame_ped_data]
 
