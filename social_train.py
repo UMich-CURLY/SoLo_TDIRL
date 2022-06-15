@@ -10,7 +10,7 @@ from social_utils import SocialDataLoader
 from grid import getSequenceGridMask
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"#GPU_ID from earlier
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"#GPU_ID from earlier
 
 config = tf.ConfigProto()
 # config.gpu_options.visible_device_list = "0"
