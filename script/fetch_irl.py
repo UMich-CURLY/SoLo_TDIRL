@@ -84,7 +84,8 @@ class IRL_Agent():
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
-        rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        # rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        rewards = deep_maxent_irl_traj_loss(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
@@ -104,5 +105,5 @@ class IRL_Agent():
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
-    irl_agent.test()
+    irl_agent.train()
     # irl_agent.read_csv()

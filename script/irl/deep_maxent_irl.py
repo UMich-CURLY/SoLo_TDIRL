@@ -7,20 +7,6 @@ import tf_utils
 from utils import *
 
 
-class Loaded_Model:
-  def __init__(self):
-    self.sess = tf.Session()
-    self.load_weights()
-    
-
-
-  def load_weights(self):
-  # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights/'))
-
-
-
 class DeepIRLFC:
 
 
@@ -67,7 +53,7 @@ class DeepIRLFC:
 
   def get_theta(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights/saved_weights")
+    self.saver.save(self.sess, "../weights1/saved_weights")
     return theta
 
 
@@ -202,6 +188,43 @@ def deep_maxent_irl(feat_map, P_a, gamma, trajs, lr, n_iters):
   # return sigmoid(normalize(rewards))
   return normalize(rewards)
 
+def get_reward_sum_from_policy(reward, policy, gridsize):
+  total_reward = 0
+
+  policy_dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+
+  policy = [policy_dict[int(i)] for i in policy]
+
+  policy = np.array(policy).reshape(gridsize[1],gridsize[0])
+
+  direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
+  
+  current_pose = np.array([2,1])
+
+  first_act = policy[current_pose[0]][current_pose[1]]
+
+  total_reward += reward[current_pose[0]*gridsize[0] + current_pose[1]][0]
+
+  count = 0
+
+  while(count < gridsize[0] * gridsize[1] - 1):
+      
+      next_goal = current_pose + direct[first_act]
+      if next_goal[0] >= gridsize[0] or next_goal[1] >= gridsize[1] or \
+            next_goal[0] < 0 or next_goal[1] < 0:
+            break
+
+      total_reward += reward[current_pose[0]*gridsize[0] + current_pose[1]][0]
+
+      current_pose = next_goal
+
+      first_act = policy[current_pose[0]][current_pose[1]]
+      # Open loop maybe closed loop later
+      count += 1
+  
+  return total_reward
+  # self.path_pub.publish(self.irl_path)
+
 
 
 def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
@@ -242,8 +265,8 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 '''
   # tf.set_random_seed(1)
   # Just for testing
-  feat_maps = feat_maps[:1]
-  trajs = trajs[:1]
+  # feat_maps = feat_maps[:1]
+  # trajs = trajs[:1]
   # feat_maps[:] = feat_maps[:][:2]
   # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
   # print(np.array(feat_maps[1]).T)
@@ -312,17 +335,153 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
   # return sigmoid(normalize(rewards))
   dict = {0: 'r', 1: 'l', 2: 'u', 4: 's'}
   policy = [dict[i] for i in policy]
-  print(np.array(policy).reshape(3,3))
+  # print(np.array(policy).reshape(3,3))
 
-  print(np.array(rewards).reshape(3,3))
+  # print(np.array(rewards).reshape(3,3))
 
   weight = nn_r.get_theta()
 
-  print("weight is ", weight)
 
   return rewards
 
+def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs, lr, n_iters):
+  """
+  Maximum Entropy Inverse Reinforcement Learning (Maxent IRL) 
+  
+  Add trajectory ranking loss batchsize=2
 
+  inputs:
+    feat_map    NxD matrix - the features for each state
+    P_a         NxNxN_ACTIONS matrix - P_a[s0, s1, a] is the transition prob of 
+                                       landing at state s1 when taking action 
+                                       a at state s0
+    gamma       float - RL discount factor
+    trajs       a list of demonstrations
+    lr          float - learning rate
+    n_iters     int - number of optimization steps
+
+  returns
+    rewards     Nx1 vector - recoverred state rewards
+  """
+
+
+  '''
+  trajs = [[Step(cur_state=7.0, next_state=4.0), Step(cur_state=4.0, next_state=1.0)], 
+            [Step(cur_state=7.0, next_state=4.0), Step(cur_state=4.0, next_state=5.0)]]
+  fms = [array([[0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [1, 1, 0, 1, 1, 0, 0, 1, 1],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0]]), 
+      
+      array([[0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [1, 1, 0, 0, 1, 0, 0, 1, 1],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0]])]
+'''
+  # tf.set_random_seed(1)
+  # Just for testing
+  feat_maps = feat_maps[:2]
+  trajs = trajs[:2]
+  # feat_maps[:] = feat_maps[:][:2]
+  # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
+  # print(np.array(feat_maps[1]).T)
+
+
+  N_STATES, _, N_ACTIONS = np.shape(P_a)
+  # print(N_STATES, N_ACTIONS)
+
+  # init nn model
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 3, 3)
+
+  # Hight and width of the feature map. (Assume the grid is a square)
+  hight = int(np.sqrt(feat_maps[0].shape[1]))
+  width = hight
+
+  # find state visitation frequencies using demonstrations
+  
+  # training 
+  # print(trajs)
+
+  train_summary_writer = tf.summary.FileWriter("../logs1")
+
+  loss_summary = tf.Summary()
+
+  for j in range(2):
+
+    for i in range(1, len(trajs), 2):
+      traj1 = [trajs[i-1]]
+      traj2 = [trajs[i]]
+      # print(traj)
+      mu_D1 = demo_svf(traj1, N_STATES)
+      mu_D2 = demo_svf(traj2, N_STATES)
+
+
+      for iteration in range(n_iters):
+      # while(l2_loss>1):
+        # if iteration % (n_iters/10) == 0:
+        #   print 'iteration: {}'.format(iteration)
+        
+        # compute the reward matrix
+        
+        rewards1 = nn_r.get_rewards(feat_maps[i-1].T)
+        rewards2 = nn_r.get_rewards(feat_maps[i].T)
+        # print(rewards)
+        # compute policy 
+        _, policy1 = value_iteration.value_iteration(P_a, rewards1, gamma, error=0.01, deterministic=True)
+        _, policy2 = value_iteration.value_iteration(P_a, rewards2, gamma, error=0.01, deterministic=True)
+        
+        # compute expected svf
+        mu_exp1 = compute_state_visition_freq(P_a, gamma, traj1, policy1, deterministic=True)
+        mu_exp2 = compute_state_visition_freq(P_a, gamma, traj2, policy2, deterministic=True)
+        
+        # compute gradients on rewards:
+        grad_r1 = mu_D1 - mu_exp1
+        grad_r2 = mu_D2 - mu_exp2
+
+        # compute the trajectory ranking loss
+        r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
+        r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
+        traj_loss = -np.log(np.exp(min(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+
+
+        # apply gradients to the neural network
+        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(0.5 * (feat_maps[i-1].T + feat_maps[i].T), (grad_r1 + grad_r2)/2 - traj_loss)
+
+        loss_summary.value.add(tag='loss', simple_value=l2_loss)
+        train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+        # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
+        print(l2_loss)
+        if(l2_loss < 1):
+          break
+        # with train_summary_writer.as_default():
+        #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
+        #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)
+
+      # print("Training %d  done" % i)
+  
+  # print(trajs)
+
+
+  rewards =nn_r.get_rewards(feat_maps[0].T)
+
+  _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
+  # print(policy)
+  # print(rewards)
+  # return sigmoid(normalize(rewards))
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+  policy = [dict[i] for i in policy]
+  print(np.array(policy).reshape(3,3))
+
+  # print(np.array(rewards).reshape(3,3))
+
+  weight = nn_r.get_theta()
+
+
+  return rewards
 
 def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
   # print(N_STATES, N_ACTIONS)
@@ -333,7 +492,7 @@ def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
-  dict = {0: 'r', 1: 'l', 2: 'u', 4: 's'}
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
   policy = [dict[i] for i in policy]
 
   # print(np.array(policy).reshape(3,3))

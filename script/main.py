@@ -101,9 +101,12 @@ class Agent():
             controller.irl_path.header.stamp = rospy.Time.now()
 
             controller.path_pub.publish(controller.irl_path)
+            rospy.sleep(0.5)
+            # print(self.result)
 
-            while(self.result == True):
-                rospy.sleep(0.01)
+            # while(self.result == False):
+            #     print(self.result)
+            #     rospy.sleep(0.01)
             self.result = False
 
 
