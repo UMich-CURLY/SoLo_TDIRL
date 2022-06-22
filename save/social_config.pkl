@@ -33,7 +33,7 @@ p12
 I5
 sS'maxNumPeds'
 p13
-I27
+I30
 sS'decay_rate'
 p14
 F0.95

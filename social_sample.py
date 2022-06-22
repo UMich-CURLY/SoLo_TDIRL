@@ -97,12 +97,10 @@ def main():
     for b in range(data_loader.num_batches):
         # Get the source, target and dataset data for the next batch
         x, y, d = data_loader.next_batch()
-        print([x, y, d])
-        return 0
 
         # Batch size is 1
         x_batch, y_batch, d_batch = x[0], y[0], d[0]
-        print(x_batch.shape) # 5 x 27 x 3
+        print(x_batch.shape) # 8 x 27 x 3
         if d_batch == 0 and dataset[0] == 0:
             dimensions = [640, 480]
         else:

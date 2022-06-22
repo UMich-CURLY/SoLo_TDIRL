@@ -39,9 +39,13 @@ class Traj_Predictor():
         # Get the checkpoint state for the model
         self.ckpt = tf.train.get_checkpoint_state('save')
 
+        self.saver.restore(self.sess, self.ckpt.model_checkpoint_path)
+
         self.pose_sub = rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates, self.pose_callback, queue_size=100)
 
         self.obs_traj = np.empty((0,30 ,3), float) # 5 x 30 x 3
+
+        self.delta_T = 0.5
 
     def pose_callback(self, states):
         # print("Into callback")
@@ -59,9 +63,12 @@ class Traj_Predictor():
         elif self.obs_traj.shape[0] < self.sample_args.obs_length:
             self.obs_traj = np.append(self.obs_traj, np.array([agent_pose]), axis=0)
 
+        rospy.sleep(self.delta_T)
+
 
     def get_predicted_trajs(self):
         if(self.obs_traj.shape[0] == self.sample_args.obs_length):
+            print(self.obs_traj)
             x_batch = self.obs_traj
 
             d_batch = 0
@@ -73,19 +80,297 @@ class Traj_Predictor():
 
             grid_batch = getSequenceGridMask(x_batch, dimensions, self.saved_args.neighborhood_size, self.saved_args.grid_size)
 
-            # obs_traj = x_batch[:self.sample_args.obs_length]
+            # add three columns zeros to x_batch
+
+            x_batch = np.vstack([x_batch, np.zeros((3,30,3))])
+
+            # print(x_batch.shape)            
+            obs_traj = x_batch[:self.sample_args.obs_length]
             obs_grid = grid_batch[:self.sample_args.obs_length]
 
             # obs_traj is an array of shape obs_length x maxNumPeds x 3
 
-            complete_traj = self.model.sample(self.sess, x_batch, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
+
+            complete_traj = self.model.sample(self.sess, obs_traj, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
+
+            return complete_traj[5:]
+            # print(complete_traj[5:].shape)
+
+    def test(self):
+
+            print(self.obs_traj)
+            x_batch = np.array([[[0.     , 0.     , 0.     ],
+            [1.     , 0.43125, 0.68125],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+        [[0.     , 0.     , 0.     ],
+            [1.     , 0.43438, 0.71458],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+        [[0.     , 0.     , 0.     ],
+            [1.     , 0.44219, 0.74792],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+        [[0.     , 0.     , 0.     ],
+            [1.     , 0.44688, 0.78333],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+        [[0.     , 0.     , 0.     ],
+            [1.     , 0.45156, 0.81458],
+            [2.     , 0.52344, 0.91875],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+            [[0.     , 0.     , 0.     ],
+            [1.     , 0.45156, 0.81458],
+            [2.     , 0.52344, 0.91875],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+            [[0.     , 0.     , 0.     ],
+            [1.     , 0.45156, 0.81458],
+            [2.     , 0.52344, 0.91875],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]],
+
+            [[0.     , 0.     , 0.     ],
+            [1.     , 0.45156, 0.81458],
+            [2.     , 0.52344, 0.91875],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ],
+            [0.     , 0.     , 0.     ]]
+
+            ])
+
+            d_batch = 0
+
+            if d_batch == 0 :
+                dimensions = [640, 480]
+            else:
+                dimensions = [720, 576]
+
+            grid_batch = getSequenceGridMask(x_batch, dimensions, self.saved_args.neighborhood_size, self.saved_args.grid_size)
+
+            obs_traj = x_batch[:self.sample_args.obs_length]
+            obs_grid = grid_batch[:self.sample_args.obs_length]
+
+            # obs_traj is an array of shape obs_length x maxNumPeds x 3
+            
+
+            complete_traj = self.model.sample(self.sess, obs_traj, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
 
             print(complete_traj[5:])
-
 
 if __name__=="__main__":
     traj_pred = Traj_Predictor()
     rospy.init_node("Traj_pred")
     while(not rospy.is_shutdown()):
         traj_pred.get_predicted_trajs()
-        rospy.sleep(0.1)
+        # rospy.sleep(0.1)
