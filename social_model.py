@@ -39,6 +39,7 @@ class SocialModel():
         # Maximum number of peds
         self.maxNumPeds = args.maxNumPeds
 
+
         # NOTE : For now assuming, batch_size is always 1. That is the input
         # to the model is always a sequence of frames
 

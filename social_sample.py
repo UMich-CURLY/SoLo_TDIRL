@@ -38,6 +38,7 @@ def get_mean_error(predicted_traj, true_traj, observed_length, maxNumPeds):
             else:
                 timestep_error += np.linalg.norm(true_pos[j, [1, 2]] - pred_pos[j, [1, 2]])
                 counter += 1
+                print( true_pos[j, [1, 2]])
 
         error[i - observed_length] = timestep_error / counter
 
@@ -96,10 +97,12 @@ def main():
     for b in range(data_loader.num_batches):
         # Get the source, target and dataset data for the next batch
         x, y, d = data_loader.next_batch()
+        print([x, y, d])
+        return 0
 
         # Batch size is 1
         x_batch, y_batch, d_batch = x[0], y[0], d[0]
-
+        print(x_batch.shape) # 5 x 27 x 3
         if d_batch == 0 and dataset[0] == 0:
             dimensions = [640, 480]
         else:
@@ -109,9 +112,25 @@ def main():
 
         obs_traj = x_batch[:sample_args.obs_length]
         obs_grid = grid_batch[:sample_args.obs_length]
+
         # obs_traj is an array of shape obs_length x maxNumPeds x 3
 
         complete_traj = model.sample(sess, obs_traj, obs_grid, dimensions, x_batch, sample_args.pred_length)
+        # print(obs_traj)
+        # print(dimensions)
+        # print('--------')
+        # print(obs_grid)
+        # print(obs_grid.shape)
+        # print('--------')
+        # print(dimensions)
+        # print('--------')
+        # print(x_batch)
+        return 0
+        # print(complete_traj[:, [1,2]])
+        # print(complete_traj.shape)
+
+
+        # return 0
 
         # ipdb.set_trace()
         # complete_traj is an array of shape (obs_length+pred_length) x maxNumPeds x 3
