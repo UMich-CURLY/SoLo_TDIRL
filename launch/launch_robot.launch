@@ -1,9 +1,8 @@
 <launch>
 
-    <include file="$(find fetch_gazebo)/launch/playground.launch"/>
+    <include file="$(find fetch_irl)/launch/playground.launch"/>
     <include file="$(find fetch_navigation)/launch/fetch_nav.launch">
          <arg name="map_file" value="$(find fetch_irl)/maps/office.yaml" />
-         <!-- <arg name="use_sim_time" value="true"/> -->
     </include>
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find fetch_irl)/launch/rviz/fetch.rviz" />
 

@@ -11,6 +11,7 @@ from geometry_msgs.msg import PoseStamped
 import numpy as np
 import matplotlib.pyplot as plt
 import img_utils
+from Traj_Predictor import Traj_Predictor
 
 class TrajPred():
 
@@ -19,9 +20,10 @@ class TrajPred():
         self.resolution = resolution
         self.discount_factor = 1 / e
         self.listener = tf.TransformListener()
+        self.TrajPredictor = Traj_Predictor()
 
 
-    def get_feature_matrix(self, traj_matrix):
+    def get_feature_matrix(self):
         '''
         traj = [[[0.      0.      0.     ]
                 [1.      0.43125 0.68125]]
@@ -32,10 +34,13 @@ class TrajPred():
                 [[0.      0.      0.     ]
                 [1.      0.44219 0.74792]]]
         '''
-        rospy.sleep(1)
+        traj_matrix = self.TrajPredictor.get_predicted_trajs()
+        while(traj_matrix is None):
+            traj_matrix = self.TrajPredictor.get_predicted_trajs()
+
         # get_transform = False
         result = np.array([0.0 for i in range(self.gridsize[0] * self.gridsize[1])])
-        print(traj_matrix)
+        # print(traj_matrix)
         for i in range(traj_matrix.shape[0]):
             # print("i",i)
             global_poses = [PoseStamped() for k in range(traj_matrix.shape[1])]
@@ -57,11 +62,17 @@ class TrajPred():
                     local_index = self.get_grid_index([-local_poses[j].pose.position.y, local_poses[j].pose.position.x])
                     # print(local_poses[j].pose.position.x, local_poses[j].pose.position.y)
                     # print(global_poses[j].pose.position.x, global_poses[j].pose.position.y)
-                    print(local_index)
                     if(self.inside_grid(local_index[0], local_index[1])):
                         result[int(local_index[1]*self.gridsize[1] + local_index[0])] += 1 * self.discount_factor**(i)
                 except:
                     print("Do not get transform!")
+        
+        # max_distance = max(result)
+        # min_distance = min(result)
+        # if max_distance - min_distance != 0:
+        #     result = [[(result[i]-min_distance) / (max_distance - min_distance)] for k in range(len(result))]
+        # else:
+        #     result = [[0] for k in range(len(result))]
         return result
 
     def get_grid_index(self, position):
@@ -93,10 +104,10 @@ if __name__ == "__main__":
                 [[0.   ,   5.   ,   -6.     ],
                 [1.   ,   1.5,  0]]])
     # while(not rospy.is_shutdown()):
-    result = traj_pred.get_feature_matrix(traj)
+
     # rospy.sleep(1)
     while(not rospy.is_shutdown()):
-        result = traj_pred.get_feature_matrix(traj)
+        result = traj_pred.get_feature_matrix()
         print(np.reshape(result, traj_pred.gridsize))
         img_utils.heatmap2d(np.reshape(result, traj_pred.gridsize), 'Traj Cost', block=False)
         plt.show()
@@ -109,7 +120,7 @@ if __name__ == "__main__":
     o x x x x x 
     o o x x x x
     x x x x x x
-    r x x x x x    
+    r x x x x x
     
     '''
 

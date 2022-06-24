@@ -15,6 +15,11 @@ find_package(catkin REQUIRED COMPONENTS
   move_base_msgs
 )
 
+find_package(gazebo REQUIRED)
+
+link_directories(${GAZEBO_LIBRARY_DIRS})
+include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS})
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -100,10 +105,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES umma_nav
-#  CATKIN_DEPENDS roscpp rospy std_msgs
-#  DEPENDS system_lib
+  DEPENDS
+    roscpp
+    rospy
+    std_msgs
 )
 
 ###########
@@ -202,3 +207,8 @@ target_link_libraries(send_goal ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+
+
+add_library(AutonomousActorPlugin SHARED src/AutonomousActorPlugin.cc)
+target_link_libraries(AutonomousActorPlugin ${caktin_LIBRARIES} ${GAZEBO_LIBRARIES})
