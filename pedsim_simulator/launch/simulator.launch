@@ -24,6 +24,8 @@
     <param name="simulation_factor" value="$(arg simulation_factor)" type="double"/>
     <param name="update_rate" value="$(arg update_rate)" type="double"/>
     <param name="spawn_period" value="$(arg spawn_period)" type="double"/>
+    <param name="frame_id" value="map" type="string"/>
+    <param name="robot_base_frame_id" value="base_link" type="string"/>
   </node>
 
   <!-- Robot controller (optional) -->
