@@ -160,8 +160,8 @@ class FeatureExpect():
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         data = PoseStamped()
-        data.pose.position.x = 14.5
-        data.pose.position.y = 14.5
+        data.pose.position.x = 13
+        data.pose.position.y = 16
         data.header.frame_id = "/map"
         feature = FeatureExpect(goal=data, resolution=0.5)
 
