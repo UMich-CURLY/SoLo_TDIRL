@@ -77,10 +77,10 @@ class TrajPred():
         max_distance = max(result)
         min_distance = min(result)
         if max_distance - min_distance != 0:
-            result = np.array([[(result[i]-min_distance) / (max_distance - min_distance)] for k in range(len(result))])
+            result = np.array([[(result[k]-min_distance) / (max_distance - min_distance)] for k in range(len(result))])
         else:
             result = np.array([[0.0] for k in range(len(result))])
-
+        # result = np.array([[result[k]] for k in range(len(result))])
         # data = Float64MultiArray()
         # data.data = result
         # print(data.data)
@@ -138,8 +138,8 @@ if __name__ == "__main__":
         # traj_pred.publish_test_traj(traj_matrix)
         # rospy.sleep(0.1)
         # print(np.reshape(result, traj_pred.gridsize))
-        # img_utils.heatmap2d(np.reshape(result, traj_pred.gridsize), 'Traj Cost', block=False)
-        # plt.show()
+        img_utils.heatmap2d(np.reshape(result, traj_pred.gridsize), 'Traj Cost', block=False)
+        plt.show()
         # print(np.reshape(result, traj_pred.gridsize))
     
     '''

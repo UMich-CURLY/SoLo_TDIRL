@@ -30,8 +30,8 @@ class IRL_Agent():
         self.W = int(np.sqrt(self.N_STATE))
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
-        self.LEARNING_RATE = 0.001
-        self.N_ITERS = 1000
+        self.LEARNING_RATE = 0.01
+        self.N_ITERS = 30
 
 
     def read_csv(self):

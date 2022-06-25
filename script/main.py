@@ -127,7 +127,7 @@ class Agent():
 
 
 if __name__ == "__main__":
-    goal = np.array([13,16])
+    goal = np.array([3,2])
     gridsize = np.array([3, 3])
     resolution = 0.5
     agent = Agent(goal, gridsize, resolution)

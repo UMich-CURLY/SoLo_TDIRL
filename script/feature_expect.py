@@ -71,7 +71,9 @@ class FeatureExpect():
     def get_current_feature(self):
         self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
         self.localcost_feature = self.Laser2density.temp_result
-        self.traj_feature, _ = self.TrajPred.get_feature_matrix()
+        self.traj_feature, _ = self.TrajPred.publish_feature_matrix()
+        self.traj_feature = np.ndarray.tolist(self.traj_feature)
+        # print(self.traj_feature)
         # print(self.distance_feature[0], self.localcost_feature[0])
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] for i in range(len(self.distance_feature))])
         print(self.current_feature)
@@ -166,8 +168,8 @@ if __name__ == "__main__":
         feature = FeatureExpect(goal=data, resolution=0.5)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_test/fm1.npz"
-        traj_file = "../dataset/trajs_test/trajs1.npz"
+        fm_file = "../dataset/fm_test/fm3.npz"
+        traj_file = "../dataset/trajs_test/trajs3.npz"
         def task(id):
             feature.get_expect(fm_file)
         
