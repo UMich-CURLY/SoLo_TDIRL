@@ -13,7 +13,10 @@
       <include>
         <uri>model://sun</uri>
       </include>
-    
+
+      <geometry>
+        <mesh><uri>model://pedsim_model2.sdf</uri></mesh>
+      </geometry>
         
 
      <model name='grey_wall_1'>
