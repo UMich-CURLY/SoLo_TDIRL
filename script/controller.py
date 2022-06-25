@@ -52,7 +52,7 @@ class PathPublisher():
         while(count < self.gridsize[0] * self.gridsize[1] - 1):
             
             next_goal = current_pose + direct[first_act]
-            print(next_goal)
+            # print(next_goal)
             if next_goal[0] >= self.gridsize[0] or next_goal[1] >= self.gridsize[1] or \
                  next_goal[0] < 0 or next_goal[1] < 0:
                  break

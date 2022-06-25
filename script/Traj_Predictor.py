@@ -35,6 +35,8 @@ class Traj_Predictor():
             self.saved_args = pickle.load(f)
         # Create a SocialModel object with the saved_args and infer set to true
         self.model = SocialModel(self.saved_args, True)
+        
+        # self.graph = tf.Graph()
         # Initialize a TensorFlow session
         self.sess = tf.InteractiveSession()
         # Initialize a saver
@@ -48,7 +50,7 @@ class Traj_Predictor():
 
         self.obs_traj = np.empty((0,30 ,3), float) # 5 x 30 x 3
 
-        self.delta_T = 0.5
+        self.delta_T = 0.4
 
     def pose_callback(self, states):
         # print("Into callback")
@@ -56,7 +58,7 @@ class Traj_Predictor():
         # print(states.header.frame_id)
         # print(len(states.agent_states))
         for state in states.agent_states:
-            pose = np.array([[state.id, state.pose.position.x, state.pose.position.y]])
+            pose = np.array([[state.id - 1, state.pose.position.x, state.pose.position.y]])
             agent_pose = np.append(agent_pose, pose, axis=0)
         # print(agent_pose.shape)
 
@@ -74,12 +76,12 @@ class Traj_Predictor():
 
         if(self.obs_traj.shape[0] == self.sample_args.obs_length):
             # print(self.obs_traj)
-            x_batch = self.obs_traj
+            x_batch = self.obs_traj / 29.0
 
             d_batch = 0
 
             if d_batch == 0 :
-                dimensions = [640, 480]
+                dimensions = [29, 29]
             else:
                 dimensions = [720, 576]
 
@@ -87,7 +89,7 @@ class Traj_Predictor():
 
             # add three columns zeros to x_batch
 
-            x_batch = np.vstack([x_batch, np.zeros((3,30,3))])
+            x_batch = np.vstack([x_batch, np.ones((3,30,3))])
 
             # print(x_batch.shape)            
             obs_traj = x_batch[:self.sample_args.obs_length]
@@ -97,8 +99,8 @@ class Traj_Predictor():
 
 
             complete_traj = self.model.sample(self.sess, obs_traj, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
-            print( complete_traj)
-            return complete_traj[5:]
+            # print( complete_traj)
+            return complete_traj * 29.0
             # print(complete_traj[5:].shape)
         return None
 
@@ -355,6 +357,8 @@ class Traj_Predictor():
 
             ])
 
+            # x_batch = x_batch * 10
+
             d_batch = 0
 
             if d_batch == 0 :
@@ -372,11 +376,12 @@ class Traj_Predictor():
 
             complete_traj = self.model.sample(self.sess, obs_traj, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
 
-            # print(complete_traj[5:])
+            print(complete_traj)
 
 if __name__=="__main__":
     traj_pred = Traj_Predictor()
     rospy.init_node("Traj_pred")
     while(not rospy.is_shutdown()):
         traj_pred.get_predicted_trajs()
+        # traj_pred.test()
         rospy.sleep(1)

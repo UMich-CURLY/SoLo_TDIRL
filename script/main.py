@@ -13,15 +13,16 @@ import rospy
 from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
-
-
+from traj_predict import TrajPred
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
 
 class Agent():
     def __init__(self, goal, gridsize,resolution):
         
         rospy.init_node("main")
 
-        self.NUM_FEATURE = 4
+        self.NUM_FEATURE = 5
 
         # self.robot_pose = np.array([0, 0])
 
@@ -34,6 +35,11 @@ class Agent():
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
         self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+ 
+        # self.traj_pred = TrajPred(gridsize=gridsize, resolution=resolution)
+        self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
+
+        self.traj_feature = [[0.0] for i in range(gridsize[0] * gridsize[1])]
 
         self.goal = goal
 
@@ -51,7 +57,16 @@ class Agent():
 
         self.nn_r = DeepIRLFC(self.NUM_FEATURE, 0.01, 3, 3)
 
+        # print("before load weight")
+
         self.nn_r.load_weights()
+
+
+        # self.traj_pred.session
+
+    def traj_callback(self,data):
+        self.traj_feature = [[cell] for cell in data.data]
+
 
     def odom_callback(self,data):
 
@@ -65,7 +80,8 @@ class Agent():
 
         localcost_feature = laser.temp_result
         # print(self.distance_feature[0], self.localcost_feature[0])
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] for i in range(len(distance_feature))])
+        # traj_feature, _ = self.TrajPred.get_feature_matrix()
+        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] for i in range(len(distance_feature))])
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
@@ -86,7 +102,7 @@ class Agent():
     def main(self):
 
         
-        while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd):
+        while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
 
             feature = self.get_feature(self.distance, self.laser, self.goal)
 
@@ -111,7 +127,7 @@ class Agent():
 
 
 if __name__ == "__main__":
-    goal = np.array([6,-6])
+    goal = np.array([13,16])
     gridsize = np.array([3, 3])
     resolution = 0.5
     agent = Agent(goal, gridsize, resolution)

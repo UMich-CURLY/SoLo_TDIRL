@@ -12,6 +12,7 @@ from tf.transformations import quaternion_matrix
 
 from collections import namedtuple
 from threading import Thread
+from traj_predict import TrajPred
 
 
 # Step = namedtuple('Step','cur_state action next_state')
@@ -24,6 +25,7 @@ class FeatureExpect():
         self.Distance2goal = Distance2goal(gridsize=gridsize, resolution=resolution)
         self.goal = goal
         self.Laser2density = Laser2density(gridsize=gridsize, resolution=resolution)
+        self.TrajPred = TrajPred(gridsize=gridsize, resolution=resolution)
         self.robot_pose = [0.0, 0.0]
         self.robot_pose_rb = [0.0, 0.0]
         self.position_offset = [0.0,0.0]
@@ -69,8 +71,9 @@ class FeatureExpect():
     def get_current_feature(self):
         self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
         self.localcost_feature = self.Laser2density.temp_result
+        self.traj_feature, _ = self.TrajPred.get_feature_matrix()
         # print(self.distance_feature[0], self.localcost_feature[0])
-        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] for i in range(len(self.distance_feature))])
+        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] for i in range(len(self.distance_feature))])
         print(self.current_feature)
 
     def get_expect(self, file):
@@ -157,14 +160,14 @@ class FeatureExpect():
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         data = PoseStamped()
-        data.pose.position.x = 5
-        data.pose.position.y = -5
+        data.pose.position.x = 14.5
+        data.pose.position.y = 14.5
         data.header.frame_id = "/map"
         feature = FeatureExpect(goal=data, resolution=0.5)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm/fm.npz"
-        traj_file = "../dataset/trajs/trajs.npz"
+        fm_file = "../dataset/fm_test/fm1.npz"
+        traj_file = "../dataset/trajs_test/trajs1.npz"
         def task(id):
             feature.get_expect(fm_file)
         

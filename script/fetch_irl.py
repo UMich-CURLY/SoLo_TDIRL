@@ -37,16 +37,16 @@ class IRL_Agent():
     def read_csv(self):
         # Get the feature map and trajectory.
         traj = []
-        for filename in os.listdir("../dataset/trajs/"):
+        for filename in os.listdir("../dataset/trajs_test/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
 
-            with np.load(os.path.join("../dataset/trajs", filename)) as data:
+            with np.load(os.path.join("../dataset/trajs_test", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
+                with np.load(os.path.join("../dataset/fm_test", file_fm_name)) as data2:
                     for i in range(len(data.files)):
                         traj_name = 'arr_{}'.format(i)
                         cur_traj_len = len(data[traj_name])

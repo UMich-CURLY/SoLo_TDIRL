@@ -8,10 +8,15 @@ from unittest import result
 import rospy
 import tf
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import img_utils
 from Traj_Predictor import Traj_Predictor
+from rospy.numpy_msg import numpy_msg
+from rospy_tutorials.msg import Floats
+# from std_msgs.msg import Float64MultiArray
+
 
 class TrajPred():
 
@@ -20,10 +25,12 @@ class TrajPred():
         self.resolution = resolution
         self.discount_factor = 1 / e
         self.listener = tf.TransformListener()
+        self.path_pub = rospy.Publisher("test_path", Path, queue_size=1000)
         self.TrajPredictor = Traj_Predictor()
+        self.feature_pub = rospy.Publisher("traj_matrix", numpy_msg(Floats), queue_size=100)
 
 
-    def get_feature_matrix(self):
+    def publish_feature_matrix(self):
         '''
         traj = [[[0.      0.      0.     ]
                 [1.      0.43125 0.68125]]
@@ -34,10 +41,10 @@ class TrajPred():
                 [[0.      0.      0.     ]
                 [1.      0.44219 0.74792]]]
         '''
-        traj_matrix = self.TrajPredictor.get_predicted_trajs()
-        while(traj_matrix is None):
-            traj_matrix = self.TrajPredictor.get_predicted_trajs()
-
+        traj_matrix_complete = self.TrajPredictor.get_predicted_trajs()
+        while(traj_matrix_complete is None):
+            traj_matrix_complete = self.TrajPredictor.get_predicted_trajs()
+        traj_matrix = traj_matrix_complete[5:]
         # get_transform = False
         result = np.array([0.0 for i in range(self.gridsize[0] * self.gridsize[1])])
         # print(traj_matrix)
@@ -67,13 +74,33 @@ class TrajPred():
                 except:
                     print("Do not get transform!")
         
-        # max_distance = max(result)
-        # min_distance = min(result)
-        # if max_distance - min_distance != 0:
-        #     result = [[(result[i]-min_distance) / (max_distance - min_distance)] for k in range(len(result))]
-        # else:
-        #     result = [[0] for k in range(len(result))]
-        return result
+        max_distance = max(result)
+        min_distance = min(result)
+        if max_distance - min_distance != 0:
+            result = np.array([[(result[i]-min_distance) / (max_distance - min_distance)] for k in range(len(result))])
+        else:
+            result = np.array([[0.0] for k in range(len(result))])
+
+        # data = Float64MultiArray()
+        # data.data = result
+        # print(data.data)
+        self.feature_pub.publish(result)
+        return result, traj_matrix_complete
+
+
+    def publish_test_traj(self, result):
+        # result = result[:5]
+        path = Path()
+        path.header.frame_id = "map"
+        for arr in result:
+            position = PoseStamped()
+            position.header.frame_id = "map"
+            position.pose.position.x = arr[0][1]
+            position.pose.position.y = arr[0][2]
+            # print(arr[0])
+            path.poses.append(position)
+        self.path_pub.publish(path)
+
 
     def get_grid_index(self, position):
         # first calculate index in y direction
@@ -107,10 +134,12 @@ if __name__ == "__main__":
 
     # rospy.sleep(1)
     while(not rospy.is_shutdown()):
-        result = traj_pred.get_feature_matrix()
-        print(np.reshape(result, traj_pred.gridsize))
-        img_utils.heatmap2d(np.reshape(result, traj_pred.gridsize), 'Traj Cost', block=False)
-        plt.show()
+        result, traj_matrix = traj_pred.publish_feature_matrix()
+        # traj_pred.publish_test_traj(traj_matrix)
+        # rospy.sleep(0.1)
+        # print(np.reshape(result, traj_pred.gridsize))
+        # img_utils.heatmap2d(np.reshape(result, traj_pred.gridsize), 'Traj Cost', block=False)
+        # plt.show()
         # print(np.reshape(result, traj_pred.gridsize))
     
     '''

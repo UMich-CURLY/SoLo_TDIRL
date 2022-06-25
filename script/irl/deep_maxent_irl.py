@@ -16,7 +16,6 @@ class DeepIRLFC:
     self.n_h1 = n_h1
     self.n_h2 = n_h2
     self.name = name
-
     self.sess = tf.Session()
     self.input_s, self.reward, self.theta = self._build_network(self.name)
     # self.optimizer = tf.train.GradientDescentOptimizer(lr)
@@ -71,8 +70,8 @@ class DeepIRLFC:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights/'))
+    new_saver = tf.train.import_meta_graph('../weights1/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights1/'))
 
   # def save_weights(self):
   #   self.theta.
@@ -384,8 +383,8 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs, lr, n_iters):
 '''
   # tf.set_random_seed(1)
   # Just for testing
-  feat_maps = feat_maps[:2]
-  trajs = trajs[:2]
+  # feat_maps = feat_maps[:2]
+  # trajs = trajs[:2]
   # feat_maps[:] = feat_maps[:][:2]
   # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
   # print(np.array(feat_maps[1]).T)
