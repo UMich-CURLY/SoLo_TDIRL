@@ -10,10 +10,9 @@ from nav_msgs.msg import Path
 import numpy as np
 
 class PathPublisher():
-    def __init__(self, policy, resolution):
+    def __init__(self, resolution, gridsize):
 
-        self.policy = policy
-        self.gridsize = np.array(policy).shape
+        self.gridsize = gridsize
         self.resolution = resolution
         self.tf_listener = tf.TransformListener()
 
@@ -27,14 +26,15 @@ class PathPublisher():
         
         pass
 
-    def get_irl_path(self):
+    def get_irl_path(self, policy):
         '''
         Policy be like:
         [['r' 'r' 'r']
         ['r' 'r' 'r']
         ['r' 'r' 'r']]
         '''
-
+        self.policy = policy
+        self.error = False
         direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
         
         current_pose = np.array([2,1])
@@ -59,10 +59,12 @@ class PathPublisher():
 
             goal_map = 0
 
-            goal_map = self.get_grid_center_position(next_goal)
+            while not goal_map:
+                goal_map = self.get_grid_center_position(next_goal)
+                # print(goal_map)
 
-            if goal_map == 0:
-                continue
+            # if goal_map == 0:
+            #     continue
 
             self.irl_path.poses.append(goal_map)
 
@@ -93,13 +95,18 @@ class PathPublisher():
         goal_in_base.pose.position.z = 0
         # goal_in_base.pose.orientation.w = 1
 
-        goal_in_base.header.frame_id = "base_link"
+        goal_in_base.header.frame_id = "/base_link"
+
+
+        # self.tf_listener.waitForTransform("map", "base_link", rospy.Time(0), rospy.Duration(4.0))
+        # goal_in_map = self.tf_listener.transformPose("map", goal_in_base)
+
 
         try:
-            self.tf_listener.waitForTransform("map", "base_link", rospy.Time(), rospy.Duration(4.0))
+            self.tf_listener.waitForTransform("map", "base_link", rospy.Time(0), rospy.Duration(4.0))
             goal_in_map = self.tf_listener.transformPose("map", goal_in_base)
         except:
-            print("Do not get transform!")
+            print("Do not get transform!!!!!!!!!")
             return 0
 
         return goal_in_map

@@ -55,11 +55,14 @@ class Traj_Predictor():
     def pose_callback(self, states):
         # print("Into callback")
         agent_pose = np.empty((0,3), float)
+        agent_pose = np.zeros((30,3), float)
         # print(states.header.frame_id)
         # print(len(states.agent_states))
-        for state in states.agent_states:
-            pose = np.array([[state.id - 1, state.pose.position.x, state.pose.position.y]])
-            agent_pose = np.append(agent_pose, pose, axis=0)
+        for i in range(len(states.agent_states)):
+            agent_pose[i] = np.array([states.agent_states[i].id - 1, states.agent_states[i].pose.position.x, states.agent_states[i].pose.position.y])
+        # for state in states.agent_states:
+        #     pose = np.array([[state.id - 1, state.pose.position.x, state.pose.position.y]])
+        #     agent_pose = np.append(agent_pose, pose, axis=0)
         # print(agent_pose.shape)
 
         if self.obs_traj.shape[0] == self.sample_args.obs_length:

@@ -13,7 +13,10 @@ def normalize(vals):
   """
   min_val = np.min(vals)
   max_val = np.max(vals)
-  return (vals - min_val) / (max_val - min_val)
+  if(max_val - min_val == 0):
+    return np.zeros(vals.shape, dtype=float)
+  else:
+    return (vals - min_val) / (max_val - min_val)
 
 
 def sigmoid(xs):

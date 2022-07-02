@@ -6,6 +6,8 @@ from collections import namedtuple
 import sys
 import os
 
+# from script.irl.deep_maxent_irl import deep_maxent_irl_fetch
+
 sys.path.append(os.path.abspath('./irl/'))
 
 import img_utils
@@ -30,8 +32,8 @@ class IRL_Agent():
         self.W = int(np.sqrt(self.N_STATE))
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
-        self.LEARNING_RATE = 0.01
-        self.N_ITERS = 30
+        self.LEARNING_RATE = 0.001
+        self.N_ITERS = 100
 
 
     def read_csv(self):
@@ -85,7 +87,7 @@ class IRL_Agent():
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         # rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
-        rewards = deep_maxent_irl_traj_loss(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 

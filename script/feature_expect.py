@@ -162,14 +162,14 @@ class FeatureExpect():
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         data = PoseStamped()
-        data.pose.position.x = 13
-        data.pose.position.y = 16
+        data.pose.position.x = 6
+        data.pose.position.y = 6
         data.header.frame_id = "/map"
         feature = FeatureExpect(goal=data, resolution=0.5)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_test/fm3.npz"
-        traj_file = "../dataset/trajs_test/trajs3.npz"
+        fm_file = "../dataset/fm_test/fm2.npz"
+        traj_file = "../dataset/trajs_test/trajs2.npz"
         def task(id):
             feature.get_expect(fm_file)
         
