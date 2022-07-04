@@ -1,0 +1,14 @@
+*.DS_Store
+*.swp
+*.pth
+*.txt
+*.pyc
+*.err
+*.script
+
+data/*
+=======
+data/PIE
+data/JAAD
+data/HEVI_dataset
+data/ETHUCY
