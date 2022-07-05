@@ -11,7 +11,7 @@ from torch.nn import functional as F
 from torch.utils import data
 
 import lib.utils as utl
-from configs.ethucy import parse_sgd_args as parse_args
+from configs.ethucy import parse_sgnet_args as parse_args
 from lib.models import build_model
 from lib.losses import rmse_loss
 from lib.utils.ethucy_train_utils_cvae import train, val, test
