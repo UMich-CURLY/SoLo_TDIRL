@@ -683,7 +683,7 @@ ZIP_LIBRARY_z:FILEPATH=/usr/lib/x86_64-linux-gnu/libz.so
 ZIP_LIBRARY_zip:FILEPATH=/usr/lib/x86_64-linux-gnu/libzip.so
 
 //The directory containing a CMake configuration file for ZeroMQ.
-ZeroMQ_DIR:PATH=ZeroMQ_DIR-NOTFOUND
+ZeroMQ_DIR:PATH=/home/yifan/anaconda3/envs/SGNet/lib/cmake/ZeroMQ
 
 //Path to a library.
 ZeroMQ_LIBRARY_zmq:FILEPATH=/usr/lib/x86_64-linux-gnu/libzmq.so
