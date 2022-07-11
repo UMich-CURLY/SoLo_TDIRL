@@ -1,6 +1,7 @@
 import sys
 import os
 
+from social_distance import SocialDistance
 
 sys.path.append(os.path.abspath('./irl/'))
 from distance2goal import Distance2goal
@@ -26,7 +27,7 @@ class Agent():
         
         rospy.init_node("main")
 
-        self.NUM_FEATURE = 5
+        self.NUM_FEATURE = 6
 
         # self.robot_pose = np.array([0, 0])
 
@@ -48,6 +49,8 @@ class Agent():
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
         self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+
+        self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
         self.controller = PathPublisher(resolution, gridsize)
  
@@ -183,9 +186,11 @@ class Agent():
             distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
 
         localcost_feature = laser.temp_result
+
+        social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
         # print(self.distance_feature[0], self.localcost_feature[0])
         # traj_feature, _ = self.TrajPred.get_feature_matrix()
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] for i in range(len(distance_feature))])
+        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):

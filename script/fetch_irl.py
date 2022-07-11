@@ -25,6 +25,7 @@ class IRL_Agent():
     def __init__(self):
         self.trajs = []
         self.fms  =[]
+        self.percent_change = []
         self.read_csv()
         self.N_STATE = self.fms[0][0].shape[0]
         # Assume the grid is square.
@@ -49,17 +50,27 @@ class IRL_Agent():
             with np.load(os.path.join("../dataset/trajs_test", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
                 with np.load(os.path.join("../dataset/fm_test", file_fm_name)) as data2:
-                    for i in range(len(data.files)):
-                        traj_name = 'arr_{}'.format(i)
-                        cur_traj_len = len(data[traj_name])
-                        if(cur_traj_len > 1):
-                            for j in range(len(data[traj_name]) - 1):
-                                traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
-                            self.trajs.append(traj)
-                            traj = []
-                    # for j in range(len(data2.files)):
-                            fm_name = 'arr_{}'.format(i)
-                            self.fms.append(data2[fm_name])
+                    file_percent_change_name = "percent_change" + number_str + ".npz"
+                    with np.load(os.path.join("../dataset/percent_change_test", file_percent_change_name)) as data3:
+                        print("data1:", len(data.files))
+                        print("data2:", len(data2.files))
+                        print("data3:", len(data3.files))
+                        for i in range(len(data.files)):
+                            traj_name = 'arr_{}'.format(i)
+                            cur_traj_len = len(data[traj_name])
+                            if(cur_traj_len > 1):
+                                for j in range(len(data[traj_name]) - 1):
+                                    traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                                self.trajs.append(traj)
+                                traj = []
+                        # for j in range(len(data2.files)):
+                                fm_name = 'arr_{}'.format(i)
+                                self.fms.append(data2[fm_name])
+
+                                percent_change_name = 'arr_{}'.format(i)
+                                self.percent_change.append(data3[percent_change_name])
+
+                    
 
         # print(len(self.fms))
         # print(len(self.trajs))
@@ -86,8 +97,8 @@ class IRL_Agent():
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
-        # rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
-        rewards = deep_maxent_irl_fetch(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
+        rewards = deep_maxent_irl_traj_loss(self.fms, P_a, self.GAMMA, self.trajs,self.percent_change, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 

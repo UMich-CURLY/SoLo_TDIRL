@@ -3,6 +3,7 @@ from cmath import e
 from pyparsing import empty
 from distance2goal import Distance2goal
 from laser2density import Laser2density
+from social_distance import SocialDistance
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from pedsim_msgs.msg import TrackedPersons
@@ -29,6 +30,7 @@ class FeatureExpect():
         self.goal = goal
         self.Laser2density = Laser2density(gridsize=gridsize, resolution=resolution)
         self.TrajPred = TrajPred(gridsize=gridsize, resolution=resolution)
+        self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
         self.sub_people = rospy.Subscriber("/pedsim_visualizer/tracked_persons", TrackedPersons,self.people_callback, queue_size=100)
         self.robot_pose = [0.0, 0.0]
         self.robot_pose_rb = [0.0, 0.0]
@@ -37,6 +39,7 @@ class FeatureExpect():
         self.tf_listener =  tf.TransformListener()
         self.feature_maps = []
         self.trajs = []
+        self.percent_reward = []
         self.fm_dict = {}
         self.traj_dict = {}
         self.pose_people = []
@@ -45,6 +48,7 @@ class FeatureExpect():
         self.velocity_people_record = []
         self.delta_t = 0.0
         self.pose_people_tf = np.empty((0,4 ,4), float)
+        
 
         # self.pose_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.get_robot_pose, queue_size=1)
 
@@ -111,9 +115,10 @@ class FeatureExpect():
         self.localcost_feature = self.Laser2density.temp_result
         self.traj_feature, _ = self.TrajPred.publish_feature_matrix()
         self.traj_feature = np.ndarray.tolist(self.traj_feature)
+        self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # print(self.traj_feature)
         # print(self.distance_feature[0], self.localcost_feature[0])
-        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] for i in range(len(self.distance_feature))])
+        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + self.social_distance_feature[i] for i in range(len(self.distance_feature))])
         # print(self.current_feature)
 
     def get_expect(self):
@@ -129,6 +134,7 @@ class FeatureExpect():
         self.robot_pose_rb = [0.0,0.0]
         
         index = self.in_which_cell(self.robot_pose_rb)
+        percent_temp = 0
         while(index):
             
             # Robot pose
@@ -141,6 +147,8 @@ class FeatureExpect():
             # people pose
             pose_temp = self.pose_people_tf
             percent_change = self.percent_change
+
+            
             for i in range(len(pose_temp)):
                 R3 = pose_temp[i]
                 R_temp = np.dot(np.linalg.inv(R1), R3)
@@ -148,7 +156,8 @@ class FeatureExpect():
                 pose_people = [pose_people[0][0], pose_people[1][0]]
                 index = self.in_which_cell(pose_people)
                 # if(index and self.percent_change[i] > 20):
-                if(percent_change[i] > 30):
+                if(percent_change[i] > 20 and index):
+                    percent_temp -= 1
                     print("ID: ",i,",    -1")
 
 
@@ -174,7 +183,7 @@ class FeatureExpect():
             
             step_list = []
             rospy.sleep(0.1)
-
+        self.percent_reward = np.append(self.percent_reward,percent_temp)
         # for i in range(len(self.trajectory) - 1):
         #     step_list.append(Step(cur_state=self.trajectory[i], next_state=self.trajectory[i+1]))
         
@@ -184,12 +193,12 @@ class FeatureExpect():
         
         discount = [(1/e)**i for i in range(len(self.trajectory))]
         for i in range(len(discount)):
-            print("Feature value:", self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])])
+            # print("Feature value:", self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])])
             self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
         self.trajectory = []
 	
-        # print(self.feature_expect)
+        print(self.feature_maps)
 
     def rot2eul(self, R) :
 
@@ -209,22 +218,23 @@ class FeatureExpect():
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         data = PoseStamped()
-        data.pose.position.x = 6
-        data.pose.position.y = 6
+        data.pose.position.x = 0
+        data.pose.position.y = 0
         data.header.frame_id = "/map"
-        feature = FeatureExpect(goal=data, resolution=2)
+        feature = FeatureExpect(goal=data, resolution=0.5)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_test/fm2.npz"
-        traj_file = "../dataset/trajs_test/trajs2.npz"
-        feature.get_expect()
+        fm_file = "../dataset/fm_test/fm0.npz"
+        traj_file = "../dataset/trajs_test/trajs0.npz"
+        percent_change_file = "../dataset/percent_change_test/percent_change0.npz"
+        # feature.get_expect()
         while(not rospy.is_shutdown()):
-            # feature.get_expect()
-            try:
-                plt.plot([a[0] for a in feature.velocity_people_record])
-                plt.pause(0.005)
-            except:
-                pass
+            feature.get_expect()
+            # try:
+            #     plt.plot([a[0] for a in feature.velocity_people_record])
+            #     plt.pause(0.005)
+            # except:
+            #     pass
             # feature.get_expect(fm_file)
             # np.savez(fm_file, *feature.feature_maps)
             # np.savez(traj_file, *feature.trajs)
@@ -238,8 +248,10 @@ if __name__ == "__main__":
             # for t in threads:
             #     t.join()
             
-            # np.savez(fm_file, *feature.feature_maps)
-            # np.savez(traj_file, *feature.trajs)
+            np.savez(fm_file, *feature.feature_maps)
+            np.savez(traj_file, *feature.trajs)
+            print(feature.percent_reward)
+            np.savez(percent_change_file, *np.array(feature.percent_reward))
 
             # plt.ion() # enable real-time plotting
             # plt.figure(1) # create a plot

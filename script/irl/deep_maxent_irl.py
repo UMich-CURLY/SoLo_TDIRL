@@ -52,7 +52,7 @@ class DeepIRLFC:
 
   def get_theta(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights1/saved_weights")
+    self.saver.save(self.sess, "../weights/saved_weights")
     return theta
 
 
@@ -343,7 +343,7 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
 
   return rewards
 
-def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs, lr, n_iters):
+def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters):
   """
   Maximum Entropy Inverse Reinforcement Learning (Maxent IRL) 
   
@@ -394,6 +394,7 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs, lr, n_iters):
   # print(N_STATES, N_ACTIONS)
 
   # init nn model
+  print("Number of feature: ", feat_maps[0].shape[0])
   nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 3, 3)
 
   # Hight and width of the feature map. (Assume the grid is a square)
@@ -442,8 +443,10 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs, lr, n_iters):
         grad_r2 = mu_D2 - mu_exp2
 
         # compute the trajectory ranking loss
-        r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
-        r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
+        # r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
+        # r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
+        r1 = percent_change[i-1]
+        r2 = percent_change[i]
         traj_loss = -np.log(np.exp(min(r1,r2)) / (np.exp(r1) + np.exp(r2)))
 
 
