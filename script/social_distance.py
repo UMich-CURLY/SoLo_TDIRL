@@ -3,6 +3,7 @@ from turtle import shape
 from matplotlib.pyplot import axis
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from visualization_msgs.msg import MarkerArray, Marker
 from pedsim_msgs.msg import TrackedPersons
 import numpy as np
 import tf
@@ -15,6 +16,7 @@ class SocialDistance():
         self.people_pose = np.empty((0,3), float)
         self.robot_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
         self.people_sub = rospy.Subscriber("/pedsim_visualizer/tracked_persons", TrackedPersons, self.people_pose_callback, queue_size=1000)
+        self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1000)
         self.listener = tf.TransformListener()
         self.alpha = 0.25
         self.beta = 0.2
@@ -26,9 +28,30 @@ class SocialDistance():
 
     def people_pose_callback(self,data):
         self.people_pose = np.empty((0,3), float)
+        
         for people in data.tracks:
             pose_temp = np.array([people.pose.pose.position.x, people.pose.pose.position.y, people.track_id - 1])
             self.people_pose = np.append(self.people_pose, np.array([pose_temp]), axis=0)
+        
+        social_distance_markers = MarkerArray()
+        for people in data.tracks:
+            social_distance = self.social_distance(people.track_id - 1)
+
+            temp_marker = Marker()
+            temp_marker.header.frame_id = "map"
+            temp_marker.id = people.track_id
+            temp_marker.type = 3
+            temp_marker.pose = people.pose.pose
+            temp_marker.scale.x = social_distance * 2
+            temp_marker.scale.y = social_distance * 2
+            temp_marker.scale.z = 0.1
+            temp_marker.color.a = 1.0
+            temp_marker.color.r = 1.0
+            temp_marker.color.g = 0.0
+            temp_marker.color.b = 0.0
+            social_distance_markers.markers.append(temp_marker)
+        self.marker_distance_pub.publish(social_distance_markers)
+
 
     def get_density(self, trackingID):
         density = 0
