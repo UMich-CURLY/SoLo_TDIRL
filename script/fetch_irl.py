@@ -1,10 +1,13 @@
+from pyexpat import features
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from collections import namedtuple
+import random
 
 import sys
 import os
+
 
 # from script.irl.deep_maxent_irl import deep_maxent_irl_fetch
 
@@ -34,24 +37,25 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 100
+        self.N_ITERS = 50
 
 
     def read_csv(self):
         # Get the feature map and trajectory.
+        # test_1 contain the trajectory loss
         traj = []
-        for filename in os.listdir("../dataset/trajs_test/"):
+        for filename in os.listdir("../dataset/trajs_test_1/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
 
-            with np.load(os.path.join("../dataset/trajs_test", filename)) as data:
+            with np.load(os.path.join("../dataset/trajs_test_2", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm_test", file_fm_name)) as data2:
+                with np.load(os.path.join("../dataset/fm_test_2", file_fm_name)) as data2:
                     file_percent_change_name = "percent_change" + number_str + ".npz"
-                    with np.load(os.path.join("../dataset/percent_change_test", file_percent_change_name)) as data3:
+                    with np.load(os.path.join("../dataset/percent_change_test_2", file_percent_change_name)) as data3:
                         print("data1:", len(data.files))
                         print("data2:", len(data2.files))
                         print("data3:", len(data3.files))
@@ -102,7 +106,17 @@ class IRL_Agent():
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
-    
+
+    def train_without_trajloss(self):
+        # feed the feature maps and traj into network and train.
+        rmap_gt = np.ones([self.H, self.W])
+        gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
+        P_a = gw.get_transition_mat()
+        # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
+        rewards = deep_maxent_irl_no_traj_loss(self.fms, P_a, self.GAMMA, self.trajs,self.percent_change, self.LEARNING_RATE, self.N_ITERS)
+        img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
+        plt.show()
+
     def test(self):
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
@@ -113,10 +127,38 @@ class IRL_Agent():
         plt.show()
 
     def eval(self):
-        pass
+        nn_r = DeepIRLFC(self.fms[0].shape[0], self.LEARNING_RATE, 3, 3)
+        nn_r.load_weights()
+        rmap_gt = np.ones([self.H, self.W])
+        gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
+        P_a = gw.get_transition_mat()
+        correct_pairs = 0
+        total_pairs = 500
+        for i in range(total_pairs):
+            num1 = random.randint(0, len(self.percent_change)-1)
+            num2 = random.randint(0, len(self.percent_change)-1)
+            while(num1 == num2):
+                num2 = random.randint(0, len(self.percent_change)-1)
+            rewards1, policy1 = get_irl_reward_policy(nn_r, self.fms[num1], P_a)
+            rewards2, policy2 = get_irl_reward_policy(nn_r, self.fms[num2], P_a)
+
+            total_reward1 = get_reward_sum_from_policy(rewards1, policy1, (self.H, self.W))
+            total_reward2 = get_reward_sum_from_policy(rewards2, policy2, (self.H, self.W))
+
+            if((total_reward1 >= total_reward2 and self.percent_change[num1] >= self.percent_change[num2]) or \
+                (total_reward1 <= total_reward2 and self.percent_change[num1] <= self.percent_change[num2])):
+                if(self.percent_change[num1] == self.percent_change[num2]):
+                    total_pairs -= 1.0
+                else:
+                    correct_pairs += 1.0
+                
+        print("The accuracy is: ", correct_pairs / total_pairs * 100)
+        return correct_pairs / total_pairs * 100
+        
+
 
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
-    irl_agent.train()
+    irl_agent.eval()
     # irl_agent.read_csv()

@@ -46,6 +46,9 @@ class FeatureExpect():
         self.velocity_people = []
         self.previous_velocity = []
         self.velocity_people_record = []
+        self.orientation_people = []
+        self.previous_orientation = []
+        self.orientation_people_record = []
         self.delta_t = 0.0
         self.pose_people_tf = np.empty((0,4 ,4), float)
         
@@ -62,17 +65,25 @@ class FeatureExpect():
         tf_matrix[2][3] = trans[2]
         # print(tf_matrix)
         return tf_matrix
+    
 
     def people_callback(self,data):
 
         if len(self.previous_velocity) == 0:
             self.previous_velocity = np.array([np.sqrt(people.twist.twist.linear.x**2 + people.twist.twist.linear.y**2) for people in data.tracks])
+            self.previous_orientation = np.array([[people.twist.twist.linear.x , people.twist.twist.linear.y] for people in data.tracks])
         else:
             self.velocity_people = np.array([np.sqrt(people.twist.twist.linear.x**2 + people.twist.twist.linear.y**2) for people in data.tracks])
+            self.orientation_people = np.array([[people.twist.twist.linear.x , people.twist.twist.linear.y] for people in data.tracks])
             self.delta_v = self.velocity_people - self.previous_velocity
+            self.delta_ori = self.orientation_people - self.previous_orientation
+            self.percent_change_ori = self.delta_ori / self.previous_orientation * 100
+            self.percent_change_ori = np.array([max(percent_ori) for percent_ori in self.percent_change_ori])
             self.percent_change = self.delta_v / self.previous_velocity * 100
+            self.previous_orientation = self.orientation_people
             self.previous_velocity = self.velocity_people
             self.velocity_people_record.append(self.percent_change.tolist())
+            self.orientation_people_record.append(self.percent_change_ori.tolist())
             # print(percent_change)
         self.pose_people = np.array([[people.pose.pose.position.x,people.pose.pose.position.y, people.pose.pose.position.z, people.pose.pose.orientation.x, people.pose.pose.orientation.y, people.pose.pose.orientation.z, people.pose.pose.orientation.w] for people in data.tracks])
         self.pose_people_tf = np.empty((0,4 ,4), float)
@@ -83,6 +94,27 @@ class FeatureExpect():
             pose_people_tf[1][3] = people_pose[1]
             pose_people_tf[2][3] = people_pose[2]
             self.pose_people_tf = np.append(self.pose_people_tf, np.array([pose_people_tf]), axis=0)
+
+    # def people_callback(self,data):
+
+    #     if len(self.previous_velocity) == 0:
+    #         self.previous_velocity = np.array([np.sqrt(people.twist.twist.linear.x**2 + people.twist.twist.linear.y**2) for people in data.tracks])
+    #     else:
+    #         self.velocity_people = np.array([np.sqrt(people.twist.twist.linear.x**2 + people.twist.twist.linear.y**2) for people in data.tracks])
+    #         self.delta_v = self.velocity_people - self.previous_velocity
+    #         self.percent_change = self.delta_v / self.previous_velocity * 100
+    #         self.previous_velocity = self.velocity_people
+    #         self.velocity_people_record.append(self.percent_change.tolist())
+    #         # print(percent_change)
+    #     self.pose_people = np.array([[people.pose.pose.position.x,people.pose.pose.position.y, people.pose.pose.position.z, people.pose.pose.orientation.x, people.pose.pose.orientation.y, people.pose.pose.orientation.z, people.pose.pose.orientation.w] for people in data.tracks])
+    #     self.pose_people_tf = np.empty((0,4 ,4), float)
+    #     for people_pose in self.pose_people:
+    #         rot = people_pose[3:]
+    #         pose_people_tf = quaternion_matrix(rot)
+    #         pose_people_tf[0][3] = people_pose[0]
+    #         pose_people_tf[1][3] = people_pose[1]
+    #         pose_people_tf[2][3] = people_pose[2]
+    #         self.pose_people_tf = np.append(self.pose_people_tf, np.array([pose_people_tf]), axis=0)
 
         # print(self.pose_people_tf)
         # print(tf_matrix)
@@ -147,6 +179,7 @@ class FeatureExpect():
             # people pose
             pose_temp = self.pose_people_tf
             percent_change = self.percent_change
+            percent_change_ori = self.percent_change_ori
 
             
             for i in range(len(pose_temp)):
@@ -156,7 +189,7 @@ class FeatureExpect():
                 pose_people = [pose_people[0][0], pose_people[1][0]]
                 index = self.in_which_cell(pose_people)
                 # if(index and self.percent_change[i] > 20):
-                if(percent_change[i] > 20 and index):
+                if(((percent_change[i] > 20) or (percent_change_ori[i] > 20)) and index):
                     percent_temp -= 1
                     print("ID: ",i,",    -1")
 
@@ -221,12 +254,12 @@ if __name__ == "__main__":
         data.pose.position.x = 0
         data.pose.position.y = 0
         data.header.frame_id = "/map"
-        feature = FeatureExpect(goal=data, resolution=0.5)
+        feature = FeatureExpect(goal=data, resolution=1)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_test/fm0.npz"
-        traj_file = "../dataset/trajs_test/trajs0.npz"
-        percent_change_file = "../dataset/percent_change_test/percent_change0.npz"
+        fm_file = "../dataset/fm_test_1/fm4.npz"
+        traj_file = "../dataset/trajs_test_1/trajs4.npz"
+        percent_change_file = "../dataset/percent_change_test_1/percent_change4.npz"
         # feature.get_expect()
         while(not rospy.is_shutdown()):
             feature.get_expect()

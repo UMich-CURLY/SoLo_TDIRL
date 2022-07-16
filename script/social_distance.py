@@ -20,6 +20,7 @@ class SocialDistance():
         self.listener = tf.TransformListener()
         self.alpha = 0.25
         self.beta = 0.2
+        self.people_size_offset = 0.5
         
         
     def robot_pose_callback(self, data):
@@ -27,15 +28,17 @@ class SocialDistance():
         self.robot_pose[1] = data.pose.pose.position.y
 
     def people_pose_callback(self,data):
-        self.people_pose = np.empty((0,3), float)
+        people_pose = np.empty((0,3), float)
         
         for people in data.tracks:
             pose_temp = np.array([people.pose.pose.position.x, people.pose.pose.position.y, people.track_id - 1])
-            self.people_pose = np.append(self.people_pose, np.array([pose_temp]), axis=0)
+            people_pose = np.append(people_pose, np.array([pose_temp]), axis=0)
         
+        self.people_pose = people_pose
+
         social_distance_markers = MarkerArray()
         for people in data.tracks:
-            social_distance = self.social_distance(people.track_id - 1)
+            social_distance = self.social_distance(people.track_id - 1, self.people_pose)
 
             temp_marker = Marker()
             temp_marker.header.frame_id = "map"
@@ -53,19 +56,22 @@ class SocialDistance():
         self.marker_distance_pub.publish(social_distance_markers)
 
 
-    def get_density(self, trackingID):
+    def get_density(self, trackingID, people_pose, ):
         density = 0
-        people_pose = self.people_pose
+        # people_pose = self.people_pose
         for i in range(len(people_pose)):
             if(i != trackingID):
                 distance = np.sqrt((people_pose[trackingID][0]-people_pose[i][0])**2 + (people_pose[trackingID][1]-people_pose[i][1])**2)
                 if distance < 2:
                     density += 1
+        distance2robot = np.sqrt((people_pose[trackingID][0]-self.robot_pose[0])**2 + (people_pose[trackingID][1]-self.robot_pose[1])**2)
+        if distance2robot < 2:
+            density += 1
         return density
 
-    def social_distance(self, trackingID):
-        density = self.get_density(trackingID)
-        return 1.557 / (density + 1 - 0.8824)**0.215 - 0.967
+    def social_distance(self, trackingID, people_pose):
+        density = self.get_density(trackingID, people_pose)
+        return 1.557 / (density + 1 - 0.8824)**0.215 - 0.967 + self.people_size_offset
 
     # def min_robot2people(self):
     #     min_distance = 1e6
@@ -75,25 +81,27 @@ class SocialDistance():
     #             min_distance = temp_norm
     #     return min_distance
 
-    def min_cell2people(self, cell_pose):
+    def min_cell2people(self, cell_pose, people_pose):
         min_distance = 1e6
         min_ID = None
-        for people in self.people_pose:
+        
+        for people in people_pose:
             temp_norm = np.sqrt((people[0]-cell_pose[0])**2 + (people[1]-cell_pose[1])**2)
             if(temp_norm < min_distance):
                 min_distance = temp_norm
                 min_ID = int(people[2])
         return min_distance, min_ID
 
-    def R_concave(self, cell_pose):
-        dt, id = self.min_cell2people(cell_pose)
-        d_comfort = self.social_distance(id)
+    def R_concave(self, cell_pose, people_pose):
+        dt, id = self.min_cell2people(cell_pose, people_pose)
+        d_comfort = self.social_distance(id, people_pose)
 
         return self.alpha*(dt**self.beta - d_comfort**self.beta) / d_comfort**self.beta
 
     def get_features(self):
         feature = np.zeros(shape = (self.gridsize[0]*self.gridsize[1], 1))
-
+        people_pose = self.people_pose
+        # print("people pose length: ",people_pose.shape)
         for x in range(self.gridsize[0]):
             for y in range(self.gridsize[1]):
                 grid_center_x, grid_center_y = self.get_grid_center_position([x , y])
@@ -110,15 +118,15 @@ class SocialDistance():
                 except:
                     print("Cannot get transform!!")
                     return None
-
                 pose_in_map = np.array([pose_in_map.pose.position.x, pose_in_map.pose.position.y])
-                dt, id = self.min_cell2people(pose_in_map)
-                d_comfort = self.social_distance(id)
+                dt, id = self.min_cell2people(pose_in_map, people_pose)
+                
+                d_comfort = self.social_distance(id, people_pose)
                 if(dt < 0):
                     feature[y * self.gridsize[1] + x] = [-0.25]
                 elif dt <= d_comfort:
-                    feature[y * self.gridsize[1] + x] = [self.R_concave(pose_in_map)]
-        print(feature)
+                    feature[y * self.gridsize[1] + x] = [self.R_concave(pose_in_map, people_pose)]
+        # print(feature)
         return feature
 
     def get_grid_center_position(self, index):

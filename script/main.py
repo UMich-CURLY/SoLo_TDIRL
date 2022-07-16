@@ -112,7 +112,7 @@ class Agent():
         
     def goal_callback(self, data):
         self.goal_id_sub = data.header.seq
-        print(data.header.frame_id)
+        # print(data.header.frame_id)
         path_srv = GetPlan()
         path_srv.start = self.nparray2posestamped(self.robot_pose)
         path_srv.goal = data.goal.target_pose
