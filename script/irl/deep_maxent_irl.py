@@ -1,3 +1,4 @@
+from random import randint
 import numpy as np
 import tensorflow as tf
 import mdp.gridworld as gridworld
@@ -53,6 +54,11 @@ class DeepIRLFC:
   def get_theta(self):
     theta = self.sess.run(self.theta)
     self.saver.save(self.sess, "../weights2/saved_weights")
+    return theta
+
+  def get_theta_no_loss(self):
+    theta = self.sess.run(self.theta)
+    self.saver.save(self.sess, "../weights3/saved_weights")
     return theta
 
 
@@ -411,11 +417,17 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  l
 
   loss_summary = tf.Summary()
 
-  for j in range(2):
+  for j in range(1):
 
-    for i in range(1, len(trajs), 2):
-      traj1 = [trajs[i-1]]
-      traj2 = [trajs[i]]
+    while(True):
+      
+      num1 = randint(0, len(trajs)-1)
+      num2 = randint(0, len(trajs)-1)
+      while(num1 == num2):
+          num2 = randint(0, len(trajs)-1)
+
+      traj1 = [trajs[num1]]
+      traj2 = [trajs[num2]]
       # print(traj)
       mu_D1 = demo_svf(traj1, N_STATES)
       mu_D2 = demo_svf(traj2, N_STATES)
@@ -428,8 +440,8 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  l
         
         # compute the reward matrix
         
-        rewards1 = nn_r.get_rewards(feat_maps[i-1].T)
-        rewards2 = nn_r.get_rewards(feat_maps[i].T)
+        rewards1 = nn_r.get_rewards(feat_maps[num1].T)
+        rewards2 = nn_r.get_rewards(feat_maps[num2].T)
         # print(rewards)
         # compute policy 
         _, policy1 = value_iteration.value_iteration(P_a, rewards1, gamma, error=0.01, deterministic=True)
@@ -446,20 +458,21 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  l
         # compute the trajectory ranking loss
         # r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
         # r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
-        r1 = percent_change[i-1]
-        r2 = percent_change[i]
-        traj_loss = -np.log(np.exp(min(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+        r1 = percent_change[num1]
+        r2 = percent_change[num2]
+        traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+        # traj_loss = (r1 < r2)
 
 
         # apply gradients to the neural network
-        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(0.5 * (feat_maps[i-1].T + feat_maps[i].T), (grad_r1 + grad_r2)/2)
+        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(0.5 * (feat_maps[num2].T + feat_maps[num1].T), (grad_r1 + grad_r2)/2)
 
         loss_summary.value.add(tag='loss', simple_value=l2_loss)
-        train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+        # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
-        print(l2_loss)
-        if(l2_loss < 1):
-          break
+      print(l2_loss)
+      if(l2_loss < 1):
+        break
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
         #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)
@@ -481,11 +494,10 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  l
 
   # print(np.array(rewards).reshape(3,3))
 
-  weight = nn_r.get_theta()
+  weight = nn_r.get_theta_no_loss()
 
 
   return rewards
-
 
 def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters):
   """
@@ -554,11 +566,17 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, 
 
   loss_summary = tf.Summary()
 
-  for j in range(2):
+  for j in range(1):
 
-    for i in range(1, len(trajs), 2):
-      traj1 = [trajs[i-1]]
-      traj2 = [trajs[i]]
+    while(True):
+      
+      num1 = randint(0, len(trajs)-1)
+      num2 = randint(0, len(trajs)-1)
+      while(num1 == num2):
+          num2 = randint(0, len(trajs)-1)
+
+      traj1 = [trajs[num1]]
+      traj2 = [trajs[num2]]
       # print(traj)
       mu_D1 = demo_svf(traj1, N_STATES)
       mu_D2 = demo_svf(traj2, N_STATES)
@@ -571,8 +589,8 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, 
         
         # compute the reward matrix
         
-        rewards1 = nn_r.get_rewards(feat_maps[i-1].T)
-        rewards2 = nn_r.get_rewards(feat_maps[i].T)
+        rewards1 = nn_r.get_rewards(feat_maps[num1].T)
+        rewards2 = nn_r.get_rewards(feat_maps[num2].T)
         # print(rewards)
         # compute policy 
         _, policy1 = value_iteration.value_iteration(P_a, rewards1, gamma, error=0.01, deterministic=True)
@@ -589,20 +607,24 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, 
         # compute the trajectory ranking loss
         # r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
         # r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
-        r1 = percent_change[i-1]
-        r2 = percent_change[i]
-        traj_loss = -np.log(np.exp(min(r1,r2)) / (np.exp(r1) + np.exp(r2)))
-
+        r1 = percent_change[num1]
+        r2 = percent_change[num2]
+        if(r1 != r2):
+          traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+        else:
+          traj_loss = 0.0
+        # traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+        # traj_loss = (r1 < r2)
 
         # apply gradients to the neural network
-        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(0.5 * (feat_maps[i-1].T + feat_maps[i].T), (grad_r1 + grad_r2)/2 - traj_loss)
+        grad_theta, l2_loss, grad_norm = nn_r.apply_grads(0.5 * (feat_maps[num2].T + feat_maps[num1].T), (grad_r1 + grad_r2)/2 - traj_loss / 2.0)
 
         loss_summary.value.add(tag='loss', simple_value=l2_loss)
-        train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+        # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
-        print(l2_loss)
-        if(l2_loss < 1):
-          break
+      print(l2_loss)
+      if(l2_loss < 1):
+        break
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
         #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)

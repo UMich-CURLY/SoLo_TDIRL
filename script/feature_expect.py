@@ -33,7 +33,9 @@ class FeatureExpect():
         self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
         self.sub_people = rospy.Subscriber("/pedsim_visualizer/tracked_persons", TrackedPersons,self.people_callback, queue_size=100)
         self.robot_pose = [0.0, 0.0]
+        self.previous_robot_pose = []
         self.robot_pose_rb = [0.0, 0.0]
+        self.robot_distance = 0.0
         self.position_offset = [0.0,0.0]
         self.trajectory = []
         self.tf_listener =  tf.TransformListener()
@@ -59,6 +61,11 @@ class FeatureExpect():
         self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
         (trans,rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
         self.robot_pose = [trans[0], trans[1]]
+        if(len(self.previous_robot_pose) == 0):
+            self.previous_robot_pose = self.robot_pose
+        else:
+            self.robot_distance += np.sqrt((self.robot_pose[0] - self.previous_robot_pose[0])**2 + (self.robot_pose[1] - self.previous_robot_pose[1])**2)
+            self.previous_robot_pose = self.robot_pose
         tf_matrix = quaternion_matrix(rot)
         tf_matrix[0][3] = trans[0]
         tf_matrix[1][3] = trans[1]
@@ -230,8 +237,12 @@ class FeatureExpect():
             self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
         self.trajectory = []
+
+        num_changes = abs(sum(self.percent_reward)) / self.robot_distance
+
+        print("Normalized sudden change: ", num_changes)
 	
-        print(self.feature_maps)
+        # print(self.feature_maps)
 
     def rot2eul(self, R) :
 
@@ -257,9 +268,9 @@ if __name__ == "__main__":
         feature = FeatureExpect(goal=data, resolution=1)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_test_1/fm4.npz"
-        traj_file = "../dataset/trajs_test_1/trajs4.npz"
-        percent_change_file = "../dataset/percent_change_test_1/percent_change4.npz"
+        fm_file = "../dataset/fm_test_1/fm6.npz"
+        traj_file = "../dataset/trajs_test_1/trajs6.npz"
+        percent_change_file = "../dataset/percent_change_test_1/percent_change6.npz"
         # feature.get_expect()
         while(not rospy.is_shutdown()):
             feature.get_expect()
@@ -281,10 +292,10 @@ if __name__ == "__main__":
             # for t in threads:
             #     t.join()
             
-            np.savez(fm_file, *feature.feature_maps)
-            np.savez(traj_file, *feature.trajs)
+            # np.savez(fm_file, *feature.feature_maps)
+            # np.savez(traj_file, *feature.trajs)
             print(feature.percent_reward)
-            np.savez(percent_change_file, *np.array(feature.percent_reward))
+            # np.savez(percent_change_file, *np.array(feature.percent_reward))
 
             # plt.ion() # enable real-time plotting
             # plt.figure(1) # create a plot
