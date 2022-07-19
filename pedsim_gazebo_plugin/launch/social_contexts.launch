@@ -16,7 +16,12 @@
          </node>
 
   <!-- Oh, you wanted a robot? -->
-  <include file="$(find fetch_gazebo)/launch/include/$(arg robot).launch.xml" />
+  <include file="$(find fetch_gazebo)/launch/include/$(arg robot).launch.xml" >
+      <!-- <arg name="x" value="10.0" />
+      <arg name="y" value="10.0" />
+      <arg name="z" value="0.0" />
+      <arg name="yaw" value="-1.7" /> -->
+  </include>
 
 </launch>
 

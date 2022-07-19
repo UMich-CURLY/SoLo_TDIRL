@@ -8,14 +8,21 @@
 	<obstacle x1="29.5" y1="29.5" x2="29.5" y2="-0.5"/>
 
   <!--Waypoints (incl. WaitingQueues)-->
-  <waypoint id="bookshop_entry" x="25" y="5" r="5"/>
-  <waypoint id="bookshop_exit" x="25" y="25" r="5"/>
+  <waypoint id="bookshop_entry" x="6" y="1" r="1"/>
+  <waypoint id="bookshop_exit" x="6" y="6" r="1"/>
 
-  <waypoint id="coffee_entry" x="5" y="25" r="5"/>
-  <waypoint id="coffee_exit" x="5" y="5" r="5"/>
+  <waypoint id="coffee_entry" x="1" y="6" r="1"/>
+  <waypoint id="coffee_exit" x="1" y="1" r="1"/>
 
   <waypoint id="robot_goal" x="22" y="27" r="2"/>
   <waypoint id="robot_start" x="4" y="4" r="2"/>
+
+  <waypoint id="waypoint1" x="3" y="6" r="1"/>
+  <waypoint id="waypoint2" x="3" y="1" r="1"/>
+
+  <waypoint id="waypoint3" x="6" y="3" r="1"/>
+  <waypoint id="waypoint4" x="1" y="3" r="1"/>
+
 
   <queue id="info_desk" x="20" y="15" direction="0"/>
 
@@ -26,27 +33,53 @@
         <addwaypoint id="robot_goal"/>
     </agent>
     <!--AgentClusters-->
-    <agent x="6" y="5" n="10" dx="3" dy="3" type="0">
+    <!-- <agent x="6" y="5" n="10" dx="3" dy="3" type="0"> -->
+    <!-- <agent x="6" y="5" n="1" dx="3" dy="3" type="0">
         <addwaypoint id="bookshop_entry"/>
         <addwaypoint id="bookshop_exit"/>
         <addwaypoint id="coffee_entry"/>
         <addwaypoint id="coffee_exit"/>
-    </agent>
-    <agent x="7" y="5" n="5" dx="3" dy="3" type="1">
+    </agent> -->
+    <!-- <agent x="7" y="5" n="5" dx="3" dy="3" type="1"> -->
+    <!-- <agent x="7" y="5" n="1" dx="3" dy="3" type="1">
         <addqueue id="info_desk"/>
         <addwaypoint id="bookshop_exit"/>
         <addwaypoint id="coffee_entry"/>
         <addwaypoint id="coffee_exit"/>
-    </agent>
-    <agent x="24" y="25" n="10" dx="4" dy="4" type="0">
+    </agent> -->
+    <!-- <agent x="24" y="25" n="10" dx="4" dy="4" type="0"> -->
+    <!-- <agent x="24" y="25" n="1" dx="4" dy="4" type="0">
         <addwaypoint id="coffee_entry"/>
         <addwaypoint id="coffee_exit"/>
         <addwaypoint id="bookshop_entry"/>
         <addwaypoint id="bookshop_exit"/>
-    </agent>
-    <agent x="23" y="25" n="5" dx="3" dy="3" type="1">
+    </agent> -->
+    <!-- <agent x="23" y="25" n="5" dx="3" dy="3" type="1"> -->
+    <!-- <agent x="23" y="25" n="1" dx="3" dy="3" type="1">
         <addwaypoint id="coffee_entry"/>
         <addqueue id="info_desk"/>
         <addwaypoint id="bookshop_exit"/>
+    </agent> -->
+
+    <!-- <agent x="6" y="1" n="1" dx="1" dy="1" type="0">
+        <addwaypoint id="bookshop_entry"/>
+        <addwaypoint id="bookshop_exit"/>
+        <addwaypoint id="coffee_entry"/>
+        <addwaypoint id="coffee_exit"/>
+    </agent> -->
+
+    <agent x="3" y="1" n="1" dx="0" dy="0" type="1">
+        <addwaypoint id="waypoint1"/>
+        <addwaypoint id="waypoint2"/>
     </agent>
+
+    <agent x="1" y="3" n="1" dx="0" dy="0" type="1">
+        <addwaypoint id="waypoint3"/>
+        <addwaypoint id="waypoint4"/>
+    </agent>
+
+    <!-- <agent x="6" y="1" n="1" dx="0" dy="0" type="1">
+        <addwaypoint id="waypoint1"/>
+        <addwaypoint id="waypoint2"/>
+    </agent> -->
 </scenario>
