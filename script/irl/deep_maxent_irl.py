@@ -92,7 +92,6 @@ def compute_state_visition_freq(P_a, gamma, trajs, policy, deterministic=True):
     trajs   list of list of Steps - collected from expert
     policy  Nx1 vector (or NxN_ACTIONS if deterministic=False) - policy
 
-  
   returns:
     p       Nx1 vector - state visitation frequencies
   """
@@ -658,7 +657,6 @@ def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
 
   rewards =nn_r.get_rewards(feat_maps.T)
 
-
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
   dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
@@ -674,4 +672,21 @@ def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
 
   return normalize(rewards), policy
 
+def get_policy(rewards, P_a, gamma=0.9,lr=0.001):
+  # print(N_STATES, N_ACTIONS)
 
+
+  value, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
+  # return sigmoid(normalize(rewards))
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+  policy = [dict[i] for i in policy]
+
+  # print(np.array(policy).reshape(3,3))
+
+  # print(np.array(rewards).reshape(3,3))
+
+  # weight = nn_r.get_theta()
+
+  # print("weight is ", weight)
+
+  return value, policy

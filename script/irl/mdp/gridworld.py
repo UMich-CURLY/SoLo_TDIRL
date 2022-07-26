@@ -137,8 +137,7 @@ class GridWorld(object):
     if self.trans_prob == 1:
       inc = self.neighbors[action]
       nei_s = (state[0] + inc[0], state[1] + inc[1])
-      if nei_s[0] >= 0 and nei_s[0] < self.height and nei_s[
-              1] >= 0 and nei_s[1] < self.width and self.grid[nei_s[0]][nei_s[1]] != 'x':
+      if nei_s[0] >= 0 and nei_s[0] < self.height and nei_s[1] >= 0 and nei_s[1] < self.width and self.grid[nei_s[0]][nei_s[1]] != 'x':
         return [(nei_s, 1)]
       else:
         # if the state is invalid, stay in the current state

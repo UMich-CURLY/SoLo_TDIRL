@@ -179,8 +179,6 @@ class FeatureExpect():
             # Robot pose
             R2 = self.get_robot_pose()
             
-        
-
             R = np.dot(np.linalg.inv(R1), R2)
 
             # people pose

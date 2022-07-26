@@ -1,4 +1,5 @@
 from turtle import shape
+
 from matplotlib.pyplot import axis
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
@@ -11,40 +12,22 @@ class SocialDistance():
     def __init__(self, resolution=1.0, gridsize=(3, 3)):
         self.resolution = resolution
         self.gridsize = gridsize
-        self.robot_pose = np.array([0.0, 0.0], dtype=float)
-        self.previous_robot_pose = []
-        self.robot_distance = 0.0
-
-        self.invade = 0.0
-        self.invade_time = 0.0
-        self.invade_id = []
-
+        self.robot_pose = np.array([0,0])
         self.people_pose = np.empty((0,3), float)
         self.robot_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
         self.people_sub = rospy.Subscriber("/pedsim_visualizer/tracked_persons", TrackedPersons, self.people_pose_callback, queue_size=1000)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1000)
-        
-
         self.listener = tf.TransformListener()
         self.alpha = 0.25
         self.beta = 0.2
         self.people_size_offset = 0.5
         
-
+        
     def robot_pose_callback(self, data):
         self.robot_pose[0] = data.pose.pose.position.x
         self.robot_pose[1] = data.pose.pose.position.y
 
-        if(len(self.previous_robot_pose) == 0):
-            self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
-        else:
-            self.robot_distance += np.sqrt((self.robot_pose[0] - self.previous_robot_pose[0])**2 + (self.robot_pose[1] - self.previous_robot_pose[1])**2)
-            self.previous_robot_pose = self.robot_pose
-
     def people_pose_callback(self,data):
-
-        time_now = rospy.get_time()
-
         people_pose = np.empty((0,3), float)
         
         for people in data.tracks:
@@ -56,29 +39,6 @@ class SocialDistance():
         social_distance_markers = MarkerArray()
         for people in data.tracks:
             social_distance = self.social_distance(people.track_id - 1, self.people_pose)
-
-            distance = np.sqrt((people.pose.pose.position.x - self.robot_pose[0])**2 + (people.pose.pose.position.y - self.robot_pose[1])**2)
-
-            if distance < social_distance:
-                print("Probably invade!!")
-                if self.invade_time == 0.0:
-                    self.invade_time = time_now
-                    self.invade_id.append(people.track_id -1)
-                    self.invade += 1.0
-                elif time_now - self.invade_time > 1.0:
-                    self.invade_id = []
-                    self.invade += 1.0
-                    self.invade_time = time_now
-                    self.invade_id.append(people.track_id -1)
-                elif time_now - self.invade_time <= 1.0:
-                    if (people.track_id - 1) not in self.invade_id:
-                        self.invade += 1.0
-                        self.invade_id.append(people.track_id - 1)
-
-            # if(social_distance > distance):
-            #     if(people.track_id not in self.invade_id):
-            #         self.invade_time = time_now
-            #         self.invade += 1.0
 
             temp_marker = Marker()
             temp_marker.header.frame_id = "map"
@@ -94,6 +54,7 @@ class SocialDistance():
             temp_marker.color.b = 0.0
             social_distance_markers.markers.append(temp_marker)
         self.marker_distance_pub.publish(social_distance_markers)
+
 
     def get_density(self, trackingID, people_pose, ):
         density = 0
@@ -163,8 +124,8 @@ class SocialDistance():
                 d_comfort = self.social_distance(id, people_pose)
                 if(dt < 0):
                     feature[y * self.gridsize[1] + x] = [-0.25]
-                elif dt <= d_comfort:
-                    feature[y * self.gridsize[1] + x] = [self.R_concave(pose_in_map, people_pose)]
+                elif dt <= 0.2:
+                    feature[y * self.gridsize[1] + x] = [-0.1-dt/2.0]
         # print(feature)
         return feature
 
@@ -182,3 +143,4 @@ if __name__ == "__main__":
     while(not rospy.is_shutdown()):
         social_distance.get_features()
         rospy.sleep(1)
+

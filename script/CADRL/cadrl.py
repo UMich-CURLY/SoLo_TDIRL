@@ -1,11 +1,11 @@
 import sys
 import os
+sys.path.append(os.path.abspath('../irl/'))
+sys.path.append(os.path.abspath('../'))
+from reward import SocialDistance
 
-from social_distance import SocialDistance
 
-sys.path.append(os.path.abspath('./irl/'))
 from distance2goal import Distance2goal
-from laser2density import Laser2density
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
@@ -14,13 +14,10 @@ from utils import *
 from controller import PathPublisher
 import rospy
 from std_msgs.msg import Bool
-from nav_msgs.msg import Odometry, OccupancyGrid, Path
+from nav_msgs.msg import OccupancyGrid, Path
 from move_base_msgs.msg import MoveBaseActionGoal
 from nav_msgs.srv import GetPlan
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
-from traj_predict import TrajPred
-from rospy.numpy_msg import numpy_msg
-from rospy_tutorials.msg import Floats
 
 class Agent():
     def __init__(self, gridsize,resolution):
@@ -48,18 +45,16 @@ class Agent():
 
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
-        self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+        # self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
 
         self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
         self.controller = PathPublisher(resolution, gridsize)
  
         # self.traj_pred = TrajPred(gridsize=gridsize, resolution=resolution)
-        self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
+        # self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
 
         self.reward_pub = rospy.Publisher("reward_map", OccupancyGrid, queue_size=1000)
-
-        self.traj_feature = [[0.0] for i in range(gridsize[0] * gridsize[1])]
 
         # self.goal = goal
 
@@ -71,27 +66,16 @@ class Agent():
 
         self.dis_thrd = 1.1 * self.resolution
 
-        self.success = 0
-        self.fail = 0
-
         # self.goal_stamped = PoseStamped()
         # self.goal_stamped.pose.position.x = self.goal[0]
         # self.goal_stamped.pose.position.y = self.goal[1]
         # self.goal_stamped.pose.position.z = 0
         # self.goal_stamped.header.frame_id = "/map"
 
-        self.nn_r = DeepIRLFC(self.NUM_FEATURE, 0.01, 3, 3)
-
         # print("before load weight")
-
-        self.nn_r.load_weights()
 
         # self.traj_pred.session
         print("Init Done!!!!")
-
-
-    def traj_callback(self,data):
-        self.traj_feature = [[cell] for cell in data.data]
 
 
     def amcl_callback(self,data):
@@ -165,46 +149,35 @@ class Agent():
             print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
 
     def multiplegoal_planner(self, goallist):
-        for goal_pose in goallist:
-            reached_goal = False
-            while(not reached_goal):
-                goal_posestamped = self.nparray2posestamped(goal_pose)
-                path_srv = GetPlan()
-                path_srv.start = self.nparray2posestamped(self.robot_pose)
-                path_srv.goal = goal_posestamped
-                path_srv.tolerance = 0.1
-                path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
-                path = path_response.plan
+        for goal in goallist:
+            goal_posestamped = self.nparray2posestamped(goal)
+            path_srv = GetPlan()
+            path_srv.start = self.nparray2posestamped(self.robot_pose)
+            path_srv.goal = goal_posestamped
+            path_srv.tolerance = 0.1
+            path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
+            path = path_response.plan
+            print("Goal from plan is: ", path.poses[-1])
+            print("Robot pose is: ", self.robot_pose)
+            if len(path.poses) != 0:
+                current_waypoint = path.poses[0]
+                goal = path.poses[-1]
 
-                if len(path.poses) != 0:
-                    current_waypoint = path.poses[0]
-                    goal = path.poses[-1]
+                for waypoint in path.poses:
+                    if waypoint != goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
+                        # current_waypoint = waypoint
+                        # self.path.append(waypoint)
+                        continue
+                    else:
+                        current_waypoint = waypoint
+                        self.path.append(waypoint)
+                self.main()
+                self.path = []
+            else:
+                print("path.pose == 0!!!!!")
+                self.path = []
 
-                    for waypoint in path.poses:
-                        if waypoint != goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
-                            # current_waypoint = waypoint
-                            # self.path.append(waypoint)
-                            continue
-                        else:
-                            current_waypoint = waypoint
-                            self.path.append(waypoint)
-                    self.main()
-                    self.path = []
-                else:
-                    print("path.pose == 0!!!!!")
-                    self.path = []
-
-                distance2goal = np.sqrt( (self.robot_pose[0] - goal_pose[0])**2 + (self.robot_pose[1] - goal_pose[1])**2 )
-                if(distance2goal <= self.dis_thrd * 1.5):
-                    print("Reached the goal!!!")
-                    reached_goal = True
-                    self.success += 1.0
-                else:
-                    print("Failed!!!")
-                    reached_goal = False
-                    self.fail += 1.0
-        
-        print("Sucessful rate: ", self.success/(self.success + self.fail))
+            print("Reached the goal!!!")
 
 
     def get_waypointdistance(self, a, b):
@@ -213,26 +186,30 @@ class Agent():
 
         return np.sqrt(dx**2 + dy**2)
 
-    def get_feature(self, distance,laser,goal):
+    def get_feature(self, distance,goal):
 
         distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
 
         while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
             distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
 
-        localcost_feature = laser.temp_result
-
         social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
-        # print(self.distance_feature[0], self.localcost_feature[0])
-        # traj_feature, _ = self.TrajPred.get_feature_matrix()
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-        return current_feature
+        
+        current_feature = []
+        
+        for i in range(len(social_distance_feature)):
+            if(distance_feature[i][0] == 0.0):
+                current_feature.append(1.0)
+            else:
+                current_feature.append(social_distance_feature[i][0])
 
-    def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
+        return np.array([current_feature]).T
+
+    def get_reward_policy(self, rewards, gridsize, gamma=0.9, act_rand=0):
         rmap_gt = np.ones([gridsize[0], gridsize[1]])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - act_rand)
         P_a = gw.get_transition_mat()
-        reward, policy = get_irl_reward_policy(self.nn_r, feat_map.T, P_a,gamma)
+        reward, policy = get_policy(rewards, P_a,gamma)
 
         return reward, policy
 
@@ -264,11 +241,13 @@ class Agent():
 
             while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
                 
-                feature = self.get_feature(self.distance, self.laser, self.goal)
+                feature = self.get_feature(self.distance, self.goal)
 
                 # print(feature)
 
                 reward, policy = self.get_reward_policy(feature, self.gridsize)
+
+                print(reward)
 
                 reward_map = OccupancyGrid()
 
@@ -305,8 +284,7 @@ class Agent():
                 #     rospy.sleep(0.01)
                 self.result = False
                 # print("Inside the while loop")
-        # if(self.social_distance.robot_distance != 0):
-        #     print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
+        
         return True
 
 
@@ -316,14 +294,7 @@ if __name__ == "__main__":
     gridsize = np.array([3, 3])
     resolution = 1
     agent = Agent(gridsize, resolution)
-    # goallist = np.array([
-    #                      [14, 9.73],
-    #                      [14, 19.13],
-    #                      [14, 26.4], 
-    #                      [14, 19.13],
-    #                      [14, 9.73],
-    #                      [14, 2.4]])
-
-    # for i in range(10):
-    #     agent.multiplegoal_planner(goallist)
+    # goallist = np.array([[11.6, 6], 
+    #                      [11.45, 11]])
+    # agent.multiplegoal_planner(goallist)
     rospy.spin()
