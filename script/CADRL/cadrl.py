@@ -64,6 +64,9 @@ class Agent():
 
         self.resolution = resolution
 
+        self.success = 0
+        self.fail = 0
+
         self.dis_thrd = 1.1 * self.resolution
 
         # self.goal_stamped = PoseStamped()
@@ -143,7 +146,6 @@ class Agent():
 
         print("Time spent is: ", end_time - start_time)
         print("Sucessful rate: ", self.success/(self.success + self.fail))
-
 
         if(self.social_distance.robot_distance != 0):
             print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
@@ -246,8 +248,6 @@ class Agent():
                 # print(feature)
 
                 reward, policy = self.get_reward_policy(feature, self.gridsize)
-
-                print(reward)
 
                 reward_map = OccupancyGrid()
 

@@ -58,7 +58,7 @@ class DeepIRLFC:
 
   def get_theta_no_loss(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights3/saved_weights")
+    self.saver.save(self.sess, "../weights5/saved_weights")
     return theta
 
 
@@ -76,8 +76,8 @@ class DeepIRLFC:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights2/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights2/'))
+    new_saver = tf.train.import_meta_graph('../weights5/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights5/'))
 
   # def save_weights(self):
   #   self.theta.
@@ -322,7 +322,7 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
         train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
         print(l2_loss)
-        if(l2_loss < 1):
+        if(l2_loss < 0.1):
           break
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
@@ -349,7 +349,7 @@ def deep_maxent_irl_fetch(feat_maps, P_a, gamma, trajs, lr, n_iters):
   return rewards
 
 
-def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters):
+def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
   """
   Maximum Entropy Inverse Reinforcement Learning (Maxent IRL) 
   
@@ -457,9 +457,9 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  l
         # compute the trajectory ranking loss
         # r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
         # r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
-        r1 = percent_change[num1]
-        r2 = percent_change[num2]
-        traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+        # r1 = percent_change[num1]
+        # r2 = percent_change[num2]
+        # traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
         # traj_loss = (r1 < r2)
 
 

@@ -1,0 +1,16 @@
+<launch>
+    <param name="/use_sim_time" value="true"/>
+    <include file="$(find pedsim_simulator)/launch/simple_pedestrians.launch">
+        <arg name="with_robot" value="false"/>
+    </include>
+
+    <include file="$(find pedsim_gazebo_plugin)/launch/social_contexts.launch"/>
+
+    <include file="$(find fetch_navigation)/launch/fetch_nav.launch">
+         <arg name="map_file" value="$(find fetch_irl)/maps/empty.yaml" />
+    </include>
+
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find fetch_irl)/launch/rviz/empty_world.rviz"/>
+
+
+</launch>

@@ -34,7 +34,7 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 20
+        self.N_ITERS = 5
         self.good_percent = 0.50
     
     def calculate_good_percent(self):
@@ -125,18 +125,18 @@ class IRL_Agent():
         # Get the feature map and trajectory.
         # test_1 contain the trajectory loss
         traj = []
-        for filename in os.listdir("../dataset/trajs_test_1/"):
+        for filename in os.listdir("../dataset/trajs_2/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
 
-            with np.load(os.path.join("../dataset/trajs_test_1", filename)) as data:
+            with np.load(os.path.join("../dataset/trajs_2", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm_test_1", file_fm_name)) as data2:
+                with np.load(os.path.join("../dataset/fm_2", file_fm_name)) as data2:
                     file_percent_change_name = "percent_change" + number_str + ".npz"
-                    with np.load(os.path.join("../dataset/percent_change_test_1", file_percent_change_name)) as data3:
+                    with np.load(os.path.join("../dataset/percent_change_1", file_percent_change_name)) as data3:
                         for i in range(len(data.files)):
                             traj_name = 'arr_{}'.format(i)
                             cur_traj_len = len(data[traj_name])
@@ -180,6 +180,40 @@ class IRL_Agent():
             [0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0]])]
         '''
+
+    def read_csv_train_no_loss(self):
+        # Get the feature map and trajectory.
+        # test_1 contain the trajectory loss
+        traj = []
+        for filename in os.listdir("../dataset/trajs_2/"):
+            # print(filename)
+            number_str = ""
+            for m in filename:
+                if m.isdigit():
+                    number_str = number_str + m
+
+            with np.load(os.path.join("../dataset/trajs_2", filename)) as data:
+                file_fm_name = "fm" + number_str + ".npz"
+                with np.load(os.path.join("../dataset/fm_2", file_fm_name)) as data2:
+                    file_percent_change_name = "percent_change" + number_str + ".npz"
+                    for i in range(len(data.files)):
+                        traj_name = 'arr_{}'.format(i)
+                        cur_traj_len = len(data[traj_name])
+                        if(cur_traj_len > 1):
+                            for j in range(len(data[traj_name]) - 1):
+                                traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                            self.trajs.append(traj)
+                            traj = []
+                    # for j in range(len(data2.files)):
+                            fm_name = 'arr_{}'.format(i)
+                            self.fms.append(data2[fm_name])
+
+        # print(self.percent_change)
+        self.N_STATE = self.fms[0][0].shape[0]
+        # Assume the grid is square.
+        self.H = int(np.sqrt(self.N_STATE))
+        self.W = int(np.sqrt(self.N_STATE))
+    
     def train(self):
         # feed the feature maps and traj into network and train.
         self.read_csv_train()
@@ -194,12 +228,12 @@ class IRL_Agent():
 
     def train_without_trajloss(self):
         # feed the feature maps and traj into network and train.
-        self.read_csv_train()
+        self.read_csv_train_no_loss()
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
-        rewards = deep_maxent_irl_no_traj_loss(self.fms, P_a, self.GAMMA, self.trajs,self.percent_change, self.LEARNING_RATE, self.N_ITERS)
+        rewards = deep_maxent_irl_no_traj_loss(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
@@ -249,8 +283,8 @@ class IRL_Agent():
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
-    irl_agent.train()
-    # irl_agent.train_without_trajloss()
+    # irl_agent.train()
+    irl_agent.train_without_trajloss()
     # irl_agent.eval()
 
     # irl_agent.read_csv_test()

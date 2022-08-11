@@ -162,6 +162,7 @@ class Agent():
 
 
         if(self.social_distance.robot_distance != 0):
+            print("robot distance is: ", self.social_distance.robot_distance)
             print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
 
     def multiplegoal_planner(self, goallist):
@@ -309,13 +310,100 @@ class Agent():
         #     print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
         return True
 
+    def test(self, goal):
+
+        self.goal = goal
+        # print("Goes to the next goal")
+
+        while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
+            
+            feature = self.get_feature(self.distance, self.laser, self.goal)
+
+            # print(feature)
+
+            reward, policy = self.get_reward_policy(feature, self.gridsize)
+
+            reward_map = OccupancyGrid()
+
+            reward_map.header.stamp = rospy.Time.now()
+            reward_map.header.frame_id = "base_link"
+            reward_map.info.resolution = self.resolution
+            reward_map.info.width = self.gridsize[0]
+            reward_map.info.height = self.gridsize[1]
+            reward_map.info.origin.position.x = 0
+            reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
+            reward_map.data = [int(cell*100) for cell in normalize(reward)]
+
+            self.reward_pub.publish(reward_map)
+
+            policy = np.reshape(policy, self.gridsize)
+
+            self.controller.get_irl_path(policy)       
+            self.controller.irl_path.header.frame_id = 'map'
+            self.controller.irl_path.header.stamp = rospy.Time.now()
+
+            if(self.controller.error):
+                # print("Controller cannot get a valid path!!!")
+                self.result = False
+                return False
+
+            # print("length of controller is ",len(controller.irl_path.poses))
+
+            self.controller.path_pub.publish(self.controller.irl_path)
+            self.controller.irl_path = Path()
+            rospy.sleep(0.5)
+            # print(self.result)
+            # print("Inside the while loop")
+            # while(self.result == False):
+            #     print(self.result)
+            #     rospy.sleep(0.01)
+            # self.result = True
+            # print("Inside the while loop")
+    # if(self.social_distance.robot_distance != 0):
+    #     print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
+        self.result = True
+
+        if(self.social_distance.robot_distance != 0):
+            print("robot distance is: ", self.social_distance.robot_distance)
+            print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
+
+        return self.result
+
+
 
 
 if __name__ == "__main__":
-    # goal = np.array([6,6])
+    goal1 = np.array([0,4])
+    goal2 = np.array([0,-4])
     gridsize = np.array([3, 3])
-    resolution = 1
+    resolution = 0.6
     agent = Agent(gridsize, resolution)
+    success = 0
+    fail = 0
+    while(not rospy.is_shutdown()):
+        # First Goal
+        start = input("Input any key when you are ready: ")
+        begin_time = rospy.get_time()
+        agent.test(goal1)
+        end_time = rospy.get_time()
+        print("Time is: ", end_time - begin_time)
+
+        if(agent.social_distance.robot_distance != 0):
+            print("robot distance is: ", agent.social_distance.robot_distance)
+            print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
+
+        # Second Goal
+
+        start = input("Input any key when you are ready: ")
+        begin_time = rospy.get_time()
+        agent.test(goal2)
+        end_time = rospy.get_time()
+        print("Time is: ", end_time - begin_time)
+
+        if(agent.social_distance.robot_distance != 0):
+            print("robot distance is: ", agent.social_distance.robot_distance)
+            print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
+
     # goallist = np.array([
     #                      [14, 9.73],
     #                      [14, 19.13],
@@ -326,4 +414,4 @@ if __name__ == "__main__":
 
     # for i in range(10):
     #     agent.multiplegoal_planner(goallist)
-    rospy.spin()
+    # rospy.spin()

@@ -4,7 +4,7 @@ from matplotlib.pyplot import axis
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
 from visualization_msgs.msg import MarkerArray, Marker
-from pedsim_msgs.msg import TrackedPersons
+from pedsim_msgs.msg import TrackedPersons, AgentStates
 import numpy as np
 import tf
 
@@ -13,9 +13,17 @@ class SocialDistance():
         self.resolution = resolution
         self.gridsize = gridsize
         self.robot_pose = np.array([0,0])
+        self.previous_robot_pose = []
+        self.robot_distance = 0.0
+
         self.people_pose = np.empty((0,3), float)
+
+        self.invade = 0.0
+        self.invade_time = 0.0
+        self.invade_id = []
+
         self.robot_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
-        self.people_sub = rospy.Subscriber("/pedsim_visualizer/tracked_persons", TrackedPersons, self.people_pose_callback, queue_size=1000)
+        self.people_sub = rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates, self.people_pose_callback, queue_size=1)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1000)
         self.listener = tf.TransformListener()
         self.alpha = 0.25
@@ -27,24 +35,57 @@ class SocialDistance():
         self.robot_pose[0] = data.pose.pose.position.x
         self.robot_pose[1] = data.pose.pose.position.y
 
+        if(len(self.previous_robot_pose) == 0):
+            self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
+        else:
+            self.robot_distance += np.sqrt((self.robot_pose[0] - self.previous_robot_pose[0])**2 + (self.robot_pose[1] - self.previous_robot_pose[1])**2)
+            # print(self.robot_distance)
+            self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
+
     def people_pose_callback(self,data):
+
+        time_now = rospy.get_time()
+
         people_pose = np.empty((0,3), float)
         
-        for people in data.tracks:
-            pose_temp = np.array([people.pose.pose.position.x, people.pose.pose.position.y, people.track_id - 1])
+        for people in data.agent_states:
+            pose_temp = np.array([people.pose.position.x, people.pose.position.y, people.id - 1])
             people_pose = np.append(people_pose, np.array([pose_temp]), axis=0)
         
         self.people_pose = people_pose
 
         social_distance_markers = MarkerArray()
-        for people in data.tracks:
-            social_distance = self.social_distance(people.track_id - 1, self.people_pose)
+        for people in data.agent_states:
+            social_distance = self.social_distance(people.id - 1, self.people_pose)
+
+            distance = np.sqrt((people.pose.position.x - self.robot_pose[0])**2 + (people.pose.position.y - self.robot_pose[1])**2)
+
+            if distance < social_distance:
+                print("Probably invade!!")
+                if self.invade_time == 0.0:
+                    self.invade_time = time_now
+                    self.invade_id.append(people.id -1)
+                    self.invade += 1.0
+                elif time_now - self.invade_time > 1.0:
+                    self.invade_id = []
+                    self.invade += 1.0
+                    self.invade_time = time_now
+                    self.invade_id.append(people.id -1)
+                elif time_now - self.invade_time <= 1.0:
+                    if (people.track_id - 1) not in self.invade_id:
+                        self.invade += 1.0
+                        self.invade_id.append(people.id - 1)
+
+            # if(social_distance > distance):
+            #     if(people.track_id not in self.invade_id):
+            #         self.invade_time = time_now
+            #         self.invade += 1.0
 
             temp_marker = Marker()
             temp_marker.header.frame_id = "map"
-            temp_marker.id = people.track_id
+            temp_marker.id = people.id
             temp_marker.type = 3
-            temp_marker.pose = people.pose.pose
+            temp_marker.pose = people.pose
             temp_marker.scale.x = social_distance * 2
             temp_marker.scale.y = social_distance * 2
             temp_marker.scale.z = 0.1
@@ -54,7 +95,6 @@ class SocialDistance():
             temp_marker.color.b = 0.0
             social_distance_markers.markers.append(temp_marker)
         self.marker_distance_pub.publish(social_distance_markers)
-
 
     def get_density(self, trackingID, people_pose, ):
         density = 0
