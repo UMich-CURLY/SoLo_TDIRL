@@ -10,7 +10,7 @@
          <arg name="map_file" value="$(find fetch_irl)/maps/empty.yaml" />
     </include>
 
-    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find fetch_irl)/launch/rviz/empty_world.rviz"/>
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find fetch_irl)/launch/rviz/empty_world.rviz"/> -->
 
 
 </launch>

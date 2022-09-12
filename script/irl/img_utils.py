@@ -1,7 +1,7 @@
 """Utility functions for process and visualize images"""
 import numpy as np
 import matplotlib.pyplot as plt
-
+from utils import normalize
 
 def show_img(img):
   print img.shape, img.dtype
@@ -23,7 +23,7 @@ def heatmap2d(hm_mat, title='', block=True, fig_num=1, text=True):
     plt.figure(fig_num)
     plt.clf()
   
-  # plt.imshow(hm_mat, cmap='hot', interpolation='nearest')
+  # plt.imshow(hm_mat, cmap='Greys', interpolation='nearest')
   plt.imshow(hm_mat, interpolation='nearest')
   plt.title(title)
   plt.colorbar()
@@ -68,7 +68,7 @@ def heatmap3d(hm_mat, title=''):
   # think of this as the floor of the plot.
   #
   x_data, y_data = np.meshgrid( np.arange(data_array.shape[1]),
-                                np.arange(data_array.shape[0]) )
+                                np.arange(data_array.shape[0]))
   #
   # Flatten out the arrays so that they may be passed to "ax.bar3d".
   # Basically, ax.bar3d expects three one-dimensional arrays:
@@ -88,3 +88,21 @@ def heatmap3d(hm_mat, title=''):
   #
   plt.show()
   raw_input()
+
+def social_distance(dt, ds):
+  alpha = 0.25
+  beta = 0.2
+  return alpha * (np.power(dt,beta) - np.power(ds, beta)) / np.power(ds, beta)
+
+
+if __name__=="__main__":
+  a = 0.9
+  gamma = 0.7
+  ds = 1.0
+  first = 0.4
+  second = 0.7
+  third = 0.7
+  data = np.array([[0.4, 0.5, 0.6],
+                   [0.2,     0.3,  0.5],
+                   [0.1,     0.2,      0.4]])
+  heatmap2d(normalize(data), title='', block=True, fig_num=1, text=False)

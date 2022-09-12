@@ -226,7 +226,7 @@ class Agent():
         social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
         # print(self.distance_feature[0], self.localcost_feature[0])
         # traj_feature, _ = self.TrajPred.get_feature_matrix()
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
@@ -379,30 +379,31 @@ if __name__ == "__main__":
     resolution = 0.6
     agent = Agent(gridsize, resolution)
     success = 0
-    fail = 0
-    while(not rospy.is_shutdown()):
-        # First Goal
-        start = input("Input any key when you are ready: ")
-        begin_time = rospy.get_time()
-        agent.test(goal1)
-        end_time = rospy.get_time()
-        print("Time is: ", end_time - begin_time)
+    # fail = 0
+    agent.test(goal1)
+    # while(not rospy.is_shutdown()):
+    #     # First Goal
+    #     start = input("Input any key when you are ready: ")
+    #     begin_time = rospy.get_time()
+    #     agent.test(goal1)
+    #     end_time = rospy.get_time()
+    #     print("Time is: ", end_time - begin_time)
 
-        if(agent.social_distance.robot_distance != 0):
-            print("robot distance is: ", agent.social_distance.robot_distance)
-            print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
+    #     if(agent.social_distance.robot_distance != 0):
+    #         print("robot distance is: ", agent.social_distance.robot_distance)
+    #         print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
 
-        # Second Goal
+    #     # Second Goal
 
-        start = input("Input any key when you are ready: ")
-        begin_time = rospy.get_time()
-        agent.test(goal2)
-        end_time = rospy.get_time()
-        print("Time is: ", end_time - begin_time)
+    #     start = input("Input any key when you are ready: ")
+    #     begin_time = rospy.get_time()
+    #     agent.test(goal2)
+    #     end_time = rospy.get_time()
+    #     print("Time is: ", end_time - begin_time)
 
-        if(agent.social_distance.robot_distance != 0):
-            print("robot distance is: ", agent.social_distance.robot_distance)
-            print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
+    #     if(agent.social_distance.robot_distance != 0):
+    #         print("robot distance is: ", agent.social_distance.robot_distance)
+    #         print("Invade into social distance: ", agent.social_distance.invade / agent.social_distance.robot_distance)
 
     # goallist = np.array([
     #                      [14, 9.73],

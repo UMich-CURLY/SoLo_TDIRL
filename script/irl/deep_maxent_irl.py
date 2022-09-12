@@ -58,7 +58,7 @@ class DeepIRLFC:
 
   def get_theta_no_loss(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights5/saved_weights")
+    self.saver.save(self.sess, "../weights6/saved_weights")
     return theta
 
 
@@ -470,7 +470,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
         # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
       print(l2_loss)
-      if(l2_loss < 1):
+      if(l2_loss < 2):
         break
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)

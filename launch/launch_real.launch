@@ -1,0 +1,5 @@
+<launch>
+    <param name="/use_sim_time" value="true"/>
+    <node pkg="map_server" type="map_server" name="map_server" args="$(find fetch_irl)/maps/name.yaml" />
+    <node pkg="tf" type="static_transform_publisher" name="static_transform_publisher" args="0 0 0 0 0 0 1 /map /odom 20" />
+</launch>

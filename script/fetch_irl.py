@@ -34,7 +34,7 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 5
+        self.N_ITERS = 15
         self.good_percent = 0.50
     
     def calculate_good_percent(self):
@@ -132,9 +132,9 @@ class IRL_Agent():
                 if m.isdigit():
                     number_str = number_str + m
 
-            with np.load(os.path.join("../dataset/trajs_2", filename)) as data:
+            with np.load(os.path.join("../dataset/trajs_4", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm_2", file_fm_name)) as data2:
+                with np.load(os.path.join("../dataset/fm_4", file_fm_name)) as data2:
                     file_percent_change_name = "percent_change" + number_str + ".npz"
                     with np.load(os.path.join("../dataset/percent_change_1", file_percent_change_name)) as data3:
                         for i in range(len(data.files)):

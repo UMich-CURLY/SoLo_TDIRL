@@ -95,7 +95,7 @@ class SocialDistance():
             temp_marker.scale.x = social_distance * 2
             temp_marker.scale.y = social_distance * 2
             temp_marker.scale.z = 0.1
-            temp_marker.color.a = 1.0
+            temp_marker.color.a = 0.5
             temp_marker.color.r = 1.0
             temp_marker.color.g = 0.0
             temp_marker.color.b = 0.0
@@ -108,7 +108,7 @@ class SocialDistance():
             writer_object.writerow(pose_record)
 
 
-    def get_density(self, trackingID, people_pose, ):
+    def get_density(self, trackingID, people_pose ):
         density = 0
         # people_pose = self.people_pose
         for i in range(len(people_pose)):

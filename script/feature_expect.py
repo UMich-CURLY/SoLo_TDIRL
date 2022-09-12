@@ -176,7 +176,8 @@ class FeatureExpect():
         self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # print(self.traj_feature)
         # print(self.distance_feature[0], self.localcost_feature[0])
-        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + self.social_distance_feature[i] for i in range(len(self.distance_feature))])
+        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
+        # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + self.social_distance_feature[i] for i in range(len(self.distance_feature))])
         # print(self.current_feature)
 
     def get_expect(self):
@@ -285,8 +286,8 @@ if __name__ == "__main__":
         feature = FeatureExpect(goal=data, resolution=1)
 
         # fm_file = TemporaryFile()
-        fm_file = "../dataset/fm_3/fm0.npz"
-        traj_file = "../dataset/trajs_3/trajs0.npz"
+        fm_file = "../dataset/fm_4/fm4.npz"
+        traj_file = "../dataset/trajs_4/trajs4.npz"
         # percent_change_file = "../dataset/percent_change_2/percent_change2.npz"
         # feature.get_expect()
         while(not rospy.is_shutdown()):
