@@ -1,135 +1,83 @@
-# Inverse Reinforcement Learning
+# SoLo T-DIRL
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.555999.svg)](https://doi.org/10.5281/zenodo.555999)
+**|[`Paper`](https://arxiv.org/abs/2209.07996) | [`Video`](https://youtu.be/0sNVtQ9eqjA)|**
 
-Implements selected inverse reinforcement learning (IRL) algorithms as part of COMP3710, supervised by Dr Mayank Daswani and Dr Marcus Hutter. My final report is available [here](https://alger.id.au/pdfs/irl.pdf) and describes the implemented algorithms.
+This repository contains the codes for our ICRA2023 paper. For more details, please refer to the paper
+[SoLo T-DIRL: Socially-Aware Dynamic Local Planner based on Trajectory-Ranked Deep Inverse Reinforcement Learning](https://arxiv.org/abs/2209.07996).
 
-If you use this code in your work, you can cite it as follows:
-```bibtex
-@misc{alger16,
-  author       = {Matthew Alger},
-  title        = {Inverse Reinforcement Learning},
-  year         = 2016,
-  doi          = {10.5281/zenodo.555999},
-  url          = {https://doi.org/10.5281/zenodo.555999}
-}
+## Abstract
+This work proposes a new framework for a socially-aware dynamic local planner in crowded environments by building on the recently proposed Trajectory-ranked Maximum Entropy Deep Inverse Reinforcement Learning (T-MEDIRL). To address the social navigation problem, our multi-modal learning planner explicitly considers social interaction factors, as well as social-awareness factors into T-MEDIRL pipeline to learn a reward function from human demonstrations. Moreover, we propose a novel trajectory ranking score using the sudden velocity change of pedestrians around the robot to address the sub-optimality in human demonstrations. Our evaluation shows that this method can successfully make a robot navigate in a crowded social environment and outperforms the state-of-art social navigation methods in terms of the success rate, navigation time, and invasion rate. 
+
+
+## Method Overview
+<img src="https://i.imgur.com/3VszTn8.png" width="1000" />
+
+## Setup
+1. Install tensorflow-1.12.0 gpu version.
+2. Install [Fetch gazebo](https://docs.fetchrobotics.com/gazebo.html) simulation package.
+3. Install [pedsim](https://github.com/srl-freiburg/pedsim_ros) simulation environment following the instruction.
+4. Install PID controller ROS package inside your catkin  workspace
+```
+git clone -b controller https://github.com/UMich-CURLY/Fetch_IRL.git tracking_pid
+```
+5. Install our SoLo TDIRL package
+```
+git clone https://github.com/UMich-CURLY/Fetch_IRL.git
+```
+6. Compile all packages. 
+```
+cd ~/catkin_ws
+catkin_make
 ```
 
-## Algorithms implemented
+## Getting Started
+This repository is organized into offline training and online testing. 
 
-- Linear programming IRL. From Ng & Russell, 2000. Small state space and large state space linear programming IRL.
-- Maximum entropy IRL. From Ziebart et al., 2008.
-- Deep maximum entropy IRL. From Wulfmeier et al., 2015; original derivation.
+### Train a reward model.
+1. Launch pedsim gazebo simulation environment.
+```
+roslaunch fetch_irl launch_dynamic.launch
+```
+2. Collect data. (Before collecting please change the data path and goal pose inside the main function of feature_expect.py)
+```
+roscd fetch_irl/script
+python feature_expect.py
+rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+```
+3. Train the policy
+```
+python fetch_irl.py
+```
+### Testing
+1. Launch simulation environment.
+```
+roslaunch fetch_irl launch_dynamic.launch
+```
+2. Launch SoLo T-DIRL.
+```
+roscd fetch_irl/script
+python main.py
+```
+3. Use 2D navigation goal button of RViz to naivgate the environment.
 
-Additionally, the following MDP domains are implemented:
-- Gridworld (Sutton, 1998)
-- Objectworld (Levine et al., 2011)
+## Simulation Videos
+SoLo T-DIRL             | SARL
+:-------------------------:|:-------------------------:
+<img src="./image/SoLoIRL.gif" width="400" />|<img src="./image/SARL.gif" width="400" />
+LSTM-RL             |  CADRL
+<img src="./image/LSTMRL.gif" width="400" />|<img src="./image/CADRL.gif" width="400" />
 
-## Requirements
-- NumPy
-- SciPy
-- CVXOPT
-- Theano
-- MatPlotLib (for examples)
 
-## Module documentation
-
-Following is a brief list of functions and classes exported by modules. Full documentation is included in the docstrings of each function or class; only functions and classes intended for use outside the module are documented here.
-
-### linear_irl
-
-Implements linear programming inverse reinforcement learning (Ng & Russell, 2000).
-
-**Functions:**
-
-- `irl(n_states, n_actions, transition_probability, policy, discount, Rmax, l1)`: Find a reward function with inverse RL.
-- `large_inverseRL(value, transition_probability, feature_matrix, n_states, n_actions, policy)`: Find the reward in a large state space.
-
-### maxent
-    
-Implements maximum entropy inverse reinforcement learning (Ziebart et al., 2008).
-
-**Functions:**
-
-- `irl(feature_matrix, n_actions, discount, transition_probability, trajectories, epochs, learning_rate)`: Find the reward function for the given trajectories.
-- `find_svf(feature_matrix, n_actions, discount, transition_probability, trajectories, epochs, learning_rate)`: Find the state visitation frequency from trajectories.
-- `find_feature_expectations(feature_matrix, trajectories)`:  Find the feature expectations for the given trajectories. This is the average path feature vector.
-- `find_expected_svf(n_states, r, n_actions, discount, transition_probability, trajectories)`: Find the expected state visitation frequencies using algorithm 1 from Ziebart et al. 2008.
-- `expected_value_difference(n_states, n_actions, transition_probability, reward, discount, p_start_state, optimal_value, true_reward)`: Calculate the expected value difference, which is a proxy to how good a recovered reward function is.
-
-### deep_maxent
-
-Implements deep maximum entropy inverse reinforcement learning based on Ziebart et al., 2008 and Wulfmeier et al., 2015, using symbolic methods with Theano.
-
-**Functions:**
-
-- `irl(structure, feature_matrix, n_actions, discount, transition_probability, trajectories, epochs, learning_rate, initialisation="normal", l1=0.1, l2=0.1)`: Find the reward function for the given trajectories.
-- `find_svf(n_states, trajectories)`: Find the state vistiation frequency from trajectories.
-- `find_expected_svf(n_states, r, n_actions, discount, transition_probability, trajectories)`: Find the expected state visitation frequencies using algorithm 1 from Ziebart et al. 2008.
-
-### value_iteration
-
-Find the value function associated with a policy. Based on Sutton & Barto, 1998.
-
-**Functions:**
-
-- `value(policy, n_states, transition_probabilities, reward, discount, threshold=1e-2)`: Find the value function associated with a policy.
-- `optimal_value(n_states, n_actions, transition_probabilities, reward, discount, threshold=1e-2)`: Find the optimal value function.
-- `find_policy(n_states, n_actions, transition_probabilities, reward, discount, threshold=1e-2, v=None, stochastic=True)`: Find the optimal policy.
-
-### mdp
-
-#### gridworld
-
-Implements the gridworld MDP.
-
-**Classes, instance attributes, methods:**
-
-- `Gridworld(grid_size, wind, discount)`: Gridworld MDP.
-    - `actions`: Tuple of (dx, dy) actions.
-    - `n_actions`: Number of actions. int.
-    - `n_states`: Number of states. int.
-    - `grid_size`: Size of grid. int.
-    - `wind`: Chance of moving randomly. float.
-    - `discount`: MDP discount factor. float.
-    - `transition_probability`: NumPy array with shape (n_states, n_actions, n_states) where `transition_probability[si, a, sk]` is the probability of transitioning from state si to state sk under action a.
-    - `feature_vector(i, feature_map="ident")`: Get the feature vector associated with a state integer.
-    - `feature_matrix(feature_map="ident")`: Get the feature matrix for this gridworld.
-    - `int_to_point(i)`: Convert a state int into the corresponding coordinate.
-    - `point_to_int(p)`: Convert a coordinate into the corresponding state int.
-    - `neighbouring(i, k)`: Get whether two points neighbour each other. Also returns true if they are the same point.
-    - `reward(state_int)`: Reward for being in state state_int.
-    - `average_reward(n_trajectories, trajectory_length, policy)`: Calculate the average total reward obtained by following a given policy over n_paths paths.
-    - `optimal_policy(state_int)`: The optimal policy for this gridworld.
-    - `optimal_policy_deterministic(state_int)`: Deterministic version of the optimal policy for this gridworld.
-    - `generate_trajectories(n_trajectories, trajectory_length, policy, random_start=False)`: Generate n_trajectories trajectories with length trajectory_length, following the given policy.
-
-#### objectworld
-
-Implements the objectworld MDP described in Levine et al. 2011.
-
-**Classes, instance attributes, methods:**
-
-- `OWObject(inner_colour, outer_colour)`: Object in objectworld.
-    - `inner_colour`: Inner colour of object. int.
-    - `outer_colour`: Outer colour of object. int.
-
-- `Objectworld(grid_size, n_objects, n_colours, wind, discount)`: Objectworld MDP.
-    - `actions`: Tuple of (dx, dy) actions.
-    - `n_actions`: Number of actions. int.
-    - `n_states`: Number of states. int.
-    - `grid_size`: Size of grid. int.
-    - `n_objects`: Number of objects in the world. int.
-    - `n_colours`: Number of colours to colour objects with. int.
-    - `wind`: Chance of moving randomly. float.
-    - `discount`: MDP discount factor. float.
-    - `objects`: Set of objects in the world.
-    - `transition_probability`: NumPy array with shape (n_states, n_actions, n_states) where `transition_probability[si, a, sk]` is the probability of transitioning from state si to state sk under action a.
-    - `feature_vector(i, discrete=True)`: Get the feature vector associated with a state integer.
-    - `feature_matrix(discrete=True)`: Get the feature matrix for this gridworld.
-    - `int_to_point(i)`: Convert a state int into the corresponding coordinate.
-    - `point_to_int(p)`: Convert a coordinate into the corresponding state int.
-    - `neighbouring(i, k)`: Get whether two points neighbour each other. Also returns true if they are the same point.
-    - `reward(state_int)`: Reward for being in state state_int.
-    - `average_reward(n_trajectories, trajectory_length, policy)`: Calculate the average total reward obtained by following a given policy over n_paths paths.
-    - `generate_trajectories(n_trajectories, trajectory_length, policy)`: Generate n_trajectories trajectories with length trajectory_length, following the given policy.
+## Citation
+If you find the codes or paper useful for your research, please cite our paper:
+```bibtex
+@misc{SoLo_TDIRL,
+  doi = {10.48550/ARXIV.2209.07996},
+  url = {https://arxiv.org/abs/2209.07996},
+  author = {Xu, Yifan and Chakhachiro, Theodor and Kathuria, Tribhi and Ghaffari, Maani},
+  keywords = {Robotics (cs.RO), Artificial Intelligence (cs.AI), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {SoLo T-DIRL: Socially-Aware Dynamic Local Planner based on Trajectory-Ranked Deep Inverse Reinforcement Learning},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
+}

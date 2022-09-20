@@ -103,9 +103,9 @@ class SocialDistance():
             # print("id: ", people.id, "position: ", [people.pose.position.x, people.pose.position.y])
         self.marker_distance_pub.publish(social_distance_markers)
 
-        with open('positions_irl.csv', 'a') as f:
-            writer_object = writer(f)
-            writer_object.writerow(pose_record)
+        # with open('positions_irl.csv', 'a') as f:
+        #     writer_object = writer(f)
+        #     writer_object.writerow(pose_record)
 
 
     def get_density(self, trackingID, people_pose ):

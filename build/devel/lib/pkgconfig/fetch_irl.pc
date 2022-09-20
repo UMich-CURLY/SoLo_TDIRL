@@ -1,8 +1,0 @@
-prefix=/home/yifan/irl_project/src/fetch_irl/build/devel
-
-Name: fetch_irl
-Description: Description of fetch_irl
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: roscpp rospy std_msgs

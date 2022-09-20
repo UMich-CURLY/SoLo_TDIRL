@@ -22,7 +22,6 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 
 
-# Step = namedtuple('Step','cur_state action next_state')
 Step = namedtuple('Step','cur_state next_state')
 class FeatureExpect():
     def __init__(self, goal, gridsize=(3,3), resolution=1):
@@ -32,7 +31,6 @@ class FeatureExpect():
         self.Distance2goal = Distance2goal(gridsize=gridsize, resolution=resolution)
         self.goal = goal
         self.Laser2density = Laser2density(gridsize=gridsize, resolution=resolution)
-        # self.TrajPred = TrajPred(gridsize=gridsize, resolution=resolution)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
         self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
         self.sub_people = rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates,self.people_callback, queue_size=100)
@@ -59,9 +57,6 @@ class FeatureExpect():
         self.delta_t = 0.0
         self.pose_people_tf = np.empty((0,4 ,4), float)
         
-
-        # self.pose_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.get_robot_pose, queue_size=1)
-
     def get_robot_pose(self):
         self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
         (trans,rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
@@ -151,8 +146,7 @@ class FeatureExpect():
         
     def in_which_cell(self, pose):
         pose = [-pose[1], pose[0]]
-        # print("Current robot pose in fixed robot frame:",pose)
-        # print(pose) # (0,0) -> (0,0.5) -> ()
+
         if pose[0] <= self.gridsize[0]*self.resolution / 2.0 and pose[0] >= -self.gridsize[0]*self.resolution / 2.0 \
             and pose[1] >= -0.1 and pose[1] <=  self.gridsize[1]*self.resolution:
 
@@ -164,26 +158,19 @@ class FeatureExpect():
             # print([x, y]) # (1,2) -> (1,1) -> (0,1)
             return [x, y]
         else:
-            # The robot is out of the cell
 
             return None
 
     def get_current_feature(self):
         self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
         self.localcost_feature = self.Laser2density.temp_result
-        # self.traj_feature, _ = self.TrajPred.publish_feature_matrix()
-        # self.traj_feature = np.ndarray.tolist(self.traj_feature)
         self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
-        # print(self.traj_feature)
-        # print(self.distance_feature[0], self.localcost_feature[0])
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
-        # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + self.social_distance_feature[i] for i in range(len(self.distance_feature))])
-        # print(self.current_feature)
+
 
     def get_expect(self):
         R1 = self.get_robot_pose()
 
-        # self.position_offset = self.robot_pose
         self.get_current_feature()
 
         self.feature_maps.append(np.array(self.current_feature).T)
@@ -201,57 +188,24 @@ class FeatureExpect():
             
             R = np.dot(np.linalg.inv(R1), R2)
 
-            # people pose
-            # pose_temp = self.pose_people_tf
-            # percent_change = self.percent_change
-            # percent_change_ori = self.percent_change_ori
-
-            
-            # for i in range(len(pose_temp)):
-            #     R3 = pose_temp[i]
-            #     R_temp = np.dot(np.linalg.inv(R1), R3)
-            #     pose_people = np.dot(R_temp, np.array([[0, 0, 0, 1]]).T)
-            #     pose_people = [pose_people[0][0], pose_people[1][0]]
-            #     index = self.in_which_cell(pose_people)
-                # if(index and self.percent_change[i] > 20):
-                # if(((percent_change[i] > 20) or (percent_change_ori[i] > 20)) and index):
-                #     percent_temp -= 1
-                #     print("ID: ",i,",    -1")
-
-
-            # ang = self.rot2eul(R)
-
-            # R2d = np.array([[cos(ang), sin(ang)],
-            #                 [-sin(ang), cos(ang)]])
-
-            # self.robot_pose_rb = np.dot(R2d, np.array([[R[0][3]], 
-            #                                            [R[1][3]]]))
             self.robot_pose_rb = np.dot(R, np.array([[0, 0, 0, 1]]).T)
 
             self.robot_pose_rb = [self.robot_pose_rb[0][0], self.robot_pose_rb[1][0]]
-            
-            # print("Current robot pose in fixed robot frame:",self.robot_pose_rb)
-            # print("Current robot pose in map frame:", self.robot_pose)
-            # print("Fixed frame in map:", [R1[0][3], R1[1][3]])
 
-            # self.robot_pose_rb = [self.robot_pose[0] - self.position_offset[0], self.robot_pose[1] - self.position_offset[1]]
             index = self.in_which_cell(self.robot_pose_rb)
             if(not index in self.trajectory and index):
                 self.trajectory.append(index)
             
             step_list = []
             rospy.sleep(0.1)
-        # self.percent_reward = np.append(self.percent_reward,percent_temp)
-        # for i in range(len(self.trajectory) - 1):
-        #     step_list.append(Step(cur_state=self.trajectory[i], next_state=self.trajectory[i+1]))
-        
+
         trajs = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
 
         self.trajs.append(np.array(trajs))
         
         discount = [(1/e)**i for i in range(len(self.trajectory))]
         for i in range(len(discount)):
-            # print("Feature value:", self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])])
+
             self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
         self.trajectory = []
@@ -285,41 +239,15 @@ if __name__ == "__main__":
         data.header.frame_id = "/map"
         feature = FeatureExpect(goal=data, resolution=1)
 
-        # fm_file = TemporaryFile()
+
         fm_file = "../dataset/fm_4/fm4.npz"
         traj_file = "../dataset/trajs_4/trajs4.npz"
-        # percent_change_file = "../dataset/percent_change_2/percent_change2.npz"
-        # feature.get_expect()
+
         while(not rospy.is_shutdown()):
             feature.get_expect()
-            # try:
-            #     plt.plot([a[0] for a in feature.velocity_people_record])
-            #     plt.pause(0.005)
-            # except:
-            #     pass
-            # feature.get_expect(fm_file)
-            # np.savez(fm_file, *feature.feature_maps)
-            # np.savez(traj_file, *feature.trajs)
-            # threads = []
-            # for n in range(1, 11):
-            #     t = Thread(target=task, args=(n,))
-            #     threads.append(t)
-            #     t.start()
-            #     rospy.sleep(0.3)
-
-            # for t in threads:
-            #     t.join()
             
             np.savez(fm_file, *feature.feature_maps)
             np.savez(traj_file, *feature.trajs)
-            # print(feature.feature_maps)
-            # np.savez(percent_change_file, *np.array(feature.percent_reward))
-
-            # plt.ion() # enable real-time plotting
-            # plt.figure(1) # create a plot
-            # plt.plot(125,250, markersize=15, marker=10, color="red")
-            # plt.imshow(1.0 - 1./(1.+np.exp(feature.Laser2density.map_logs)), 'Greys')
-            # plt.pause(0.005)
         
 
         
