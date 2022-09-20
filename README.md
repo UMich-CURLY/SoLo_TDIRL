@@ -10,7 +10,8 @@ This work proposes a new framework for a socially-aware dynamic local planner in
 
 
 ## Method Overview
-<img src="https://i.imgur.com/3VszTn8.png" width="1000" />
+<img src="./image/pipeline_real.png" width="1000" />
+<img src="./image/structure_figure.png" width="1000" />
 
 ## Setup
 1. Install tensorflow-1.12.0 gpu version.
