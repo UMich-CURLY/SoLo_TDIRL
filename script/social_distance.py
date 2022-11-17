@@ -153,6 +153,8 @@ class SocialDistance():
     def get_features(self):
         feature = np.zeros(shape = (self.gridsize[0]*self.gridsize[1], 1))
         people_pose = self.people_pose
+        if(people_pose.shape[0] == 0):
+            return feature
         # print("people pose length: ",people_pose.shape)
         for x in range(self.gridsize[0]):
             for y in range(self.gridsize[1]):

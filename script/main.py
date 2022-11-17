@@ -226,7 +226,7 @@ class Agent():
         social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
         # print(self.distance_feature[0], self.localcost_feature[0])
         # traj_feature, _ = self.TrajPred.get_feature_matrix()
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
+        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):

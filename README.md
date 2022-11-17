@@ -1,6 +1,10 @@
 # SoLo T-DIRL
 
+<<<<<<< HEAD
 **|[`Paper`](https://arxiv.org/abs/2209.07996) | [`Video`](https://www.youtube.com/watch?v=TPibiQMoL-k&ab_channel=UMich-CURLY)|**
+=======
+**|[`Paper`](https://arxiv.org/abs/2209.07996) | [`Video`](https://www.youtube.com/watch?v=TPibiQMoL-k)|**
+>>>>>>> c7eb0251fd6fe860040dbe37a65604f6dfc80fdf
 
 This repository contains the codes for our ICRA2023 paper. For more details, please refer to the paper
 [SoLo T-DIRL: Socially-Aware Dynamic Local Planner based on Trajectory-Ranked Deep Inverse Reinforcement Learning](https://arxiv.org/abs/2209.07996).

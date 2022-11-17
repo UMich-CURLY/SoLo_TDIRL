@@ -1,4 +1,6 @@
+from cmath import sqrt
 from pyexpat import features
+from turtle import shape
 
 from matplotlib.colors import same_color
 import numpy as np
@@ -18,7 +20,7 @@ sys.path.append(os.path.abspath('./irl/'))
 import img_utils
 from mdp import gridworld
 from mdp import value_iteration
-from deep_maxent_irl import *
+from deep_maxent_irl_ori import *
 from maxent_irl import *
 from utils import *
 from lp_irl import *
@@ -34,7 +36,7 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 15
+        self.N_ITERS = 10
         self.good_percent = 0.50
     
     def calculate_good_percent(self):
@@ -185,17 +187,15 @@ class IRL_Agent():
         # Get the feature map and trajectory.
         # test_1 contain the trajectory loss
         traj = []
-        for filename in os.listdir("../dataset/trajs_2/"):
+        for filename in os.listdir("../dataset/trajs/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
-
-            with np.load(os.path.join("../dataset/trajs_2", filename)) as data:
+            with np.load(os.path.join("../dataset/trajs", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm_2", file_fm_name)) as data2:
-                    file_percent_change_name = "percent_change" + number_str + ".npz"
+                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
                     for i in range(len(data.files)):
                         traj_name = 'arr_{}'.format(i)
                         cur_traj_len = len(data[traj_name])
@@ -204,7 +204,6 @@ class IRL_Agent():
                                 traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
                             self.trajs.append(traj)
                             traj = []
-                    # for j in range(len(data2.files)):
                             fm_name = 'arr_{}'.format(i)
                             self.fms.append(data2[fm_name])
 
@@ -213,6 +212,43 @@ class IRL_Agent():
         # Assume the grid is square.
         self.H = int(np.sqrt(self.N_STATE))
         self.W = int(np.sqrt(self.N_STATE))
+
+    def read_csv_train_multi_trajs(self):
+        # Get the feature map and trajectory.
+        # test_1 contain the trajectory loss
+        traj = []
+        trajs_set = []
+        for filename in os.listdir("../dataset/trajs/"):
+            # print(filename)
+            number_str = ""
+            for m in filename:
+                if m.isdigit():
+                    number_str = number_str + m
+            with np.load(os.path.join("../dataset/trajs", filename)) as data:
+                file_fm_name = "fm" + number_str + ".npz"
+                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
+                    for i in range(len(data.files)):
+                        traj_name = 'arr_{}'.format(i)
+                        cur_traj_len = len(data[traj_name])
+                        if(cur_traj_len > 1):
+                            for j in range(len(data[traj_name]) - 1):
+                                traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                            trajs_set.append(traj)
+                            traj = []
+                    temp_fm = data2["arr_0"].T
+                    # print(temp_fm.shape)
+                    fm = np.reshape(temp_fm, [int(np.sqrt(temp_fm.shape[0])), int(np.sqrt(temp_fm.shape[0])), temp_fm.shape[1]])
+                    fm = np.array([fm])
+                    # print(fm.shape)
+                    self.fms.append(fm)
+                    self.trajs.append(trajs_set)
+                    trajs_set = []
+        # print(len(self.trajs))
+        # print(len(self.fms))
+        # print(self.fms.shape)
+        self.N_STATE = fm.shape[1]*fm.shape[2]
+        self.H = fm.shape[2]
+        self.W = fm.shape[1]
     
     def train(self):
         # feed the feature maps and traj into network and train.
@@ -237,13 +273,23 @@ class IRL_Agent():
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
+    def train_multi_trajs(self):
+        # feed the feature maps and traj into network and train.
+        self.read_csv_train_multi_trajs()
+        rmap_gt = np.ones([self.H, self.W])
+        gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
+        P_a = gw.get_transition_mat()
+        rewards = deep_maxent_irl_mul_traj(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
+        plt.show()
+
     def test(self):
         self.read_csv_test()
         rmap_gt = np.ones([self.H, self.W])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         rewards, policy = get_irl_reward_policy(self.fms[0], P_a)
-        print(self.fms[0].shape)
+        # print(self.fms[0].shape)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
@@ -283,8 +329,11 @@ class IRL_Agent():
 
 if __name__=="__main__":
     irl_agent = IRL_Agent()
+    # irl_agent.read_csv_train_multi_trajs()
+
+    irl_agent.train_multi_trajs()
     # irl_agent.train()
-    irl_agent.train_without_trajloss()
+    # irl_agent.train_without_trajloss()
     # irl_agent.eval()
 
     # irl_agent.read_csv_test()

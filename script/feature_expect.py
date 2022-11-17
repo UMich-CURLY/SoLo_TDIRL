@@ -6,11 +6,17 @@ from laser2density import Laser2density
 from social_distance import SocialDistance
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from gazebo_msgs.srv import SpawnModel, DeleteModel, SetModelState
+from gazebo_msgs.msg import *
 from pedsim_msgs.msg import TrackedPersons, AgentStates
 import numpy as np
 from numpy import cos, sin
 import matplotlib.pyplot as plt
 from matplotlib import colors, markers
+import os
+import sys
+sys.path.append(os.path.abspath('./irl/'))
+import img_utils
 import tf
 from tf.transformations import quaternion_matrix
 
@@ -56,7 +62,19 @@ class FeatureExpect():
         self.orientation_people_record = []
         self.delta_t = 0.0
         self.pose_people_tf = np.empty((0,4 ,4), float)
+
+        self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
+        self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
+        self.initpose = PoseWithCovarianceStamped()
+        self.initpose_get = False
         
+        rospy.wait_for_service("gazebo/set_model_state")
+        self.set_state = rospy.ServiceProxy("gazebo/set_model_state", SetModelState)
+    
+    def initpose_callback(self,data):
+        self.initpose = data
+        self.initpose_get = True
+
     def get_robot_pose(self):
         self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
         (trans,rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
@@ -145,20 +163,20 @@ class FeatureExpect():
         # print("delta_v: ",self.delta_v)
         
     def in_which_cell(self, pose):
-        pose = [-pose[1], pose[0]]
+        # pose = [-pose[1], pose[0]]
 
-        if pose[0] <= self.gridsize[0]*self.resolution / 2.0 and pose[0] >= -self.gridsize[0]*self.resolution / 2.0 \
-            and pose[1] >= -0.1 and pose[1] <=  self.gridsize[1]*self.resolution:
+        if pose[0] < self.gridsize[1]*self.resolution and pose[0] > -0.5*self.resolution \
+            and pose[1] > -0.5*self.gridsize[0] and pose[1] < 0.5*self.gridsize[0]:
 
-            pose[1] = max(0,pose[1])
+            # pose[1] = max(0,pose[1])
             
-            y = min((self.gridsize[1]*self.resolution - pose[1]) // self.resolution, 2)
+            # y = min(((self.gridsize[1])*self.resolution - pose[1]) // self.resolution, 2)
+            y = ((self.gridsize[1]-0.5)*self.resolution - pose[0]) // self.resolution
 
-            x = (pose[0] + self.gridsize[1]*self.resolution / 2.0) // self.resolution
+            x = (-pose[1] + self.gridsize[1]*self.resolution / 2.0) // self.resolution
             # print([x, y]) # (1,2) -> (1,1) -> (0,1)
             return [x, y]
         else:
-
             return None
 
     def get_current_feature(self):
@@ -166,14 +184,12 @@ class FeatureExpect():
         self.localcost_feature = self.Laser2density.temp_result
         self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
-
+        self.feature_maps.append(np.array(self.current_feature).T)
 
     def get_expect(self):
         R1 = self.get_robot_pose()
 
         self.get_current_feature()
-
-        self.feature_maps.append(np.array(self.current_feature).T)
 
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
 
@@ -196,23 +212,29 @@ class FeatureExpect():
             if(not index in self.trajectory and index):
                 self.trajectory.append(index)
             
+            # Whether the robot reaches the goal
+            distance = np.sqrt((self.robot_pose[0] - self.goal.pose.position.x)**2+(self.robot_pose[1] - self.goal.pose.position.y)**2)
+            # print("distance: ", distance)
             step_list = []
+            if(distance < 0.5):
+                break
             rospy.sleep(0.1)
 
-        trajs = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
+        self.traj = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
 
-        self.trajs.append(np.array(trajs))
+        if(len(self.traj) > 1):
+            self.trajs.append(np.array(self.traj))
         
         discount = [(1/e)**i for i in range(len(self.trajectory))]
-        for i in range(len(discount)):
+        # for i in range(len(discount)):
 
-            self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
+        #     self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
         self.trajectory = []
 
-        num_changes = abs(sum(self.percent_reward)) / self.robot_distance
+        # num_changes = abs(sum(self.percent_reward)) / self.robot_distance
 
-        print("Normalized sudden change: ", num_changes)
+        # print("Normalized sudden change: ", num_changes)
 	
         # print(self.feature_maps)
 
@@ -229,26 +251,39 @@ class FeatureExpect():
 
         return z
 
+    def reset_robot(self):
+        state_msg = ModelState()
+        state_msg.model_name = 'fetch'
+        state_msg.pose = self.initpose.pose.pose
+        self.set_state(state_msg)
+
+        initpose = self.initpose
+        self.initpose_pub.publish(initpose)
+        # print("Publish successfully")
+
 
 
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
+        initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         data = PoseStamped()
-        data.pose.position.x = 0
-        data.pose.position.y = 4
+        data.pose.position.x = 4
+        data.pose.position.y = 0
         data.header.frame_id = "/map"
-        feature = FeatureExpect(goal=data, resolution=1)
+        feature = FeatureExpect(goal=data, resolution=0.5, gridsize=(31,31))
 
-
-        fm_file = "../dataset/fm_4/fm4.npz"
-        traj_file = "../dataset/trajs_4/trajs4.npz"
-
+        fm_file = "../dataset/fm/fm.npz"
+        traj_file = "../dataset/trajs/trajs.npz"
+        while(not feature.initpose_get):
+            rospy.sleep(0.1)
+        feature.reset_robot()
+        rospy.sleep(1)
+        feature.get_current_feature()
+        np.savez(fm_file, *feature.feature_maps)
         while(not rospy.is_shutdown()):
             feature.get_expect()
-            
-            np.savez(fm_file, *feature.feature_maps)
-            np.savez(traj_file, *feature.trajs)
-        
-
-        
-
+            if(len(feature.traj) > 1):
+                np.savez(traj_file, *feature.trajs)
+                print("One demonstration finished!!")
+            feature.reset_robot()
+            rospy.sleep(0.1)

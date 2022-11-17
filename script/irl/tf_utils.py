@@ -1,4 +1,5 @@
 """Utility functions for tensorflow"""
+from unicodedata import name
 import tensorflow as tf
 import numpy as np
 
@@ -37,6 +38,12 @@ def conv2d(x, n_kernel, k_sz, stride=1):
   # rectified linear unit: https://en.wikipedia.org/wiki/Rectifier_(neural_networks)
   return tf.nn.relu(conv)
 
+
+def batch_norm(bias_input, is_training, scope_name):
+    with tf.variable_scope(name) as scope:
+        return tf.cond(is_training,
+                       lambda: tf.contrib.layers.batch_norm(bias_input, is_training=True, center=False, scope=scope),
+                       lambda: tf.contrib.layers.batch_norm(bias_input, is_training=False,center=False, reuse = True, scope=scope))
 
 def fc(x, n_output, scope="fc", activation_fn=None, initializer=None):
   """fully connected layer with relu activation wrapper
