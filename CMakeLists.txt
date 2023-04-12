@@ -15,10 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
   move_base_msgs
 )
 
-find_package(gazebo REQUIRED)
 
-link_directories(${GAZEBO_LIBRARY_DIRS})
-include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} ${GAZEBO_INCLUDE_DIRS})
+include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS})
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -135,8 +133,8 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(send_goal src/send_goal.cpp)
-target_link_libraries(send_goal ${catkin_LIBRARIES})
+# add_executable(send_goal src/send_goal.cpp)
+# target_link_libraries(send_goal ${catkin_LIBRARIES})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -207,8 +205,3 @@ target_link_libraries(send_goal ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-
-
-
-add_library(AutonomousActorPlugin SHARED src/AutonomousActorPlugin.cc)
-target_link_libraries(AutonomousActorPlugin ${caktin_LIBRARIES} ${GAZEBO_LIBRARIES})

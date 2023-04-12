@@ -1,9 +1,8 @@
 from turtle import pos, shape
 from matplotlib.pyplot import axis
 import rospy
-from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, PoseArray, Pose
 from visualization_msgs.msg import MarkerArray, Marker
-from pedsim_msgs.msg import TrackedPersons, AgentStates
 import numpy as np
 import tf
 from csv import writer
@@ -21,15 +20,15 @@ class SocialDistance():
         self.invade_id = []
 
         self.people_pose = np.empty((0,3), float)
-        self.robot_sub = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
-        self.people_sub = rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates, self.people_pose_callback, queue_size=1)
+        self.robot_sub = rospy.Subscriber("sim/robot_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
+        self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.people_pose_callback, queue_size=1)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1)
         
 
         self.listener = tf.TransformListener()
         self.alpha = 0.25
         self.beta = 0.2
-        self.people_size_offset = 0.5
+        self.people_size_offset = 0.2
         
 
     def robot_pose_callback(self, data):
@@ -51,36 +50,38 @@ class SocialDistance():
         pose_record = []
         
         pose_record += [self.robot_pose[0], self.robot_pose[1]]
-
-        for people in data.agent_states:
-            pose_temp = np.array([people.pose.position.x, people.pose.position.y, people.id - 1])
+        people_id = 0
+        for people in data.poses:
+            pose_temp = np.array([people.position.x, people.position.y, people_id])
             people_pose = np.append(people_pose, np.array([pose_temp]), axis=0)
-            pose_record += [people.pose.position.x, people.pose.position.y]
+            pose_record += [people.position.x, people.position.y]
+            people_id+=1
         
         self.people_pose = people_pose
         # print(self.people_pose)
 
         social_distance_markers = MarkerArray()
-        for people in data.agent_states:
-            social_distance = self.social_distance(people.id - 1, self.people_pose)
+        people_id = 0
+        for people in data.poses:
+            social_distance = self.social_distance(people_id, self.people_pose)
 
-            distance = np.sqrt((people.pose.position.x - self.robot_pose[0])**2 + (people.pose.position.y - self.robot_pose[1])**2)
+            distance = np.sqrt((people.position.x - self.robot_pose[0])**2 + (people.position.y - self.robot_pose[1])**2)
 
             if distance < social_distance:
                 print("Probably invade!!")
                 if self.invade_time == 0.0:
                     self.invade_time = time_now
-                    self.invade_id.append(people.id -1)
+                    self.invade_id.append(people_id)
                     self.invade += 1.0
                 elif time_now - self.invade_time > 1.0:
                     self.invade_id = []
                     self.invade += 1.0
                     self.invade_time = time_now
-                    self.invade_id.append(people.id -1)
+                    self.invade_id.append(people_id)
                 elif time_now - self.invade_time <= 1.0:
-                    if (people.id - 1) not in self.invade_id:
+                    if (people.id) not in self.invade_id:
                         self.invade += 1.0
-                        self.invade_id.append(people.id - 1)
+                        self.invade_id.append(people_id)
 
             # if(social_distance > distance):
             #     if(people.track_id not in self.invade_id):
@@ -88,10 +89,10 @@ class SocialDistance():
             #         self.invade += 1.0
 
             temp_marker = Marker()
-            temp_marker.header.frame_id = "map"
-            temp_marker.id = people.id
+            temp_marker.header.frame_id = "my_map_frame"
+            temp_marker.id = people_id
             temp_marker.type = 3
-            temp_marker.pose = people.pose
+            temp_marker.pose = people
             temp_marker.scale.x = social_distance * 2
             temp_marker.scale.y = social_distance * 2
             temp_marker.scale.z = 0.1
@@ -100,6 +101,7 @@ class SocialDistance():
             temp_marker.color.g = 0.0
             temp_marker.color.b = 0.0
             social_distance_markers.markers.append(temp_marker)
+            people_id +=1
             # print("id: ", people.id, "position: ", [people.pose.position.x, people.pose.position.y])
         self.marker_distance_pub.publish(social_distance_markers)
 
@@ -167,8 +169,8 @@ class SocialDistance():
 
 
                 try:
-                    self.listener.waitForTransform("/map", "/base_link", rospy.Time(0), rospy.Duration(4.0))
-                    pose_in_map = self.listener.transformPose("/map", pose_base)
+                    self.listener.waitForTransform("/my_map_frame", "/base_link", rospy.Time(0), rospy.Duration(4.0))
+                    pose_in_map = self.listener.transformPose("/my_map_frame", pose_base)
                 except:
                     print("Cannot get transform!!")
                     return None
