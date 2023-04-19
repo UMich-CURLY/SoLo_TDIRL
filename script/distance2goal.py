@@ -19,7 +19,8 @@ class Distance2goal():
         # Goal should be in PoseStamped form
         result = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
         try:
-            self.listener.waitForTransform("/map", "/base_link", rospy.Time(0), rospy.Duration(4.0))
+            frame_id = goal.header.frame_id
+            self.listener.waitForTransform(frame_id, "/base_link", rospy.Time(0), rospy.Duration(4.0))
             goal_in_base = self.listener.transformPose("/base_link", goal)
             for x in range(self.gridsize[0]):
                 for y in range(self.gridsize[1]):
