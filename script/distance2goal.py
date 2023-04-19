@@ -5,6 +5,7 @@ from math import sqrt, pow
 import rospy
 from geometry_msgs.msg import PoseStamped
 import numpy as np
+from IPython import embed
 
 class Distance2goal():
 
@@ -22,6 +23,7 @@ class Distance2goal():
             frame_id = goal.header.frame_id
             self.listener.waitForTransform(frame_id, "/base_link", rospy.Time(0), rospy.Duration(4.0))
             goal_in_base = self.listener.transformPose("/base_link", goal)
+            print("Goal in base link ", goal_in_base)
             for x in range(self.gridsize[0]):
                 for y in range(self.gridsize[1]):
                     grid_center_x, grid_center_y = self.get_grid_center_position([x , y])
@@ -35,7 +37,7 @@ class Distance2goal():
             result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
         except:
             print("Do not get transform!")
-            # pass
+            pass
         # result = [[result[i]] for i in range(len(result))]
 
         # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
