@@ -7,13 +7,13 @@ import argparse
 import ipdb
 import sys
 
-sys.path.append(os.path.abspath('./social_lstm_tf/'))
+sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/social_lstm_tf/social-lstm-tf/social_lstm'))
 
 from social_utils import SocialDataLoader
 from social_model import SocialModel
 from grid import getSequenceGridMask
 import rospy
-from pedsim_msgs.msg import AgentStates
+from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, PoseArray, Pose
 
 class Traj_Predictor():
 
@@ -46,7 +46,7 @@ class Traj_Predictor():
 
         self.saver.restore(self.sess, self.ckpt.model_checkpoint_path)
 
-        self.pose_sub = rospy.Subscriber("/pedsim_simulator/simulated_agents", AgentStates, self.pose_callback, queue_size=100)
+        self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.pose_callback, queue_size=1)
 
         self.obs_traj = np.empty((0,30 ,3), float) # 5 x 30 x 3
 
@@ -58,8 +58,8 @@ class Traj_Predictor():
         agent_pose = np.zeros((30,3), float)
         # print(states.header.frame_id)
         # print(len(states.agent_states))
-        for i in range(len(states.agent_states)):
-            agent_pose[i] = np.array([states.agent_states[i].id - 1, states.agent_states[i].pose.position.x, states.agent_states[i].pose.position.y])
+        for i in range(len(states.poses)):
+            agent_pose[i] = np.array([i, states.poses[i].position.x, states.poses[i].position.y])
         # for state in states.agent_states:
         #     pose = np.array([[state.id - 1, state.pose.position.x, state.pose.position.y]])
         #     agent_pose = np.append(agent_pose, pose, axis=0)

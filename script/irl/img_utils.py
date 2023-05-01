@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from utils import normalize
 
 def show_img(img):
-  print img.shape, img.dtype
+  print(img.shape, img.dtype)
   plt.imshow(img[:,:,0])
   plt.ion()
   plt.show()
@@ -17,7 +17,7 @@ def heatmap2d(hm_mat, title='', block=True, fig_num=1, text=True):
   input:
     hm_mat:   mxn 2d np array
   """
-  print 'map shape: {}, data type: {}'.format(hm_mat.shape, hm_mat.dtype)
+  print('map shape: {}, data type: {}'.format(hm_mat.shape, hm_mat.dtype))
 
   if block:
     plt.figure(fig_num)
@@ -38,7 +38,7 @@ def heatmap2d(hm_mat, title='', block=True, fig_num=1, text=True):
 
   if block:
     plt.ion()
-    print 'press enter to continue'
+    print('press enter to continue')
     plt.show()
     raw_input()
 
