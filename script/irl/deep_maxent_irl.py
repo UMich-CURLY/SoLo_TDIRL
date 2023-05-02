@@ -1,5 +1,7 @@
 from random import randint
 import numpy as np
+import sys 
+sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
 import tensorflow as tf
 import mdp.gridworld as gridworld
 import mdp.value_iteration as value_iteration

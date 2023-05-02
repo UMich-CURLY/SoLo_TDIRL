@@ -3,9 +3,9 @@ import os
 
 from social_distance import SocialDistance
 
-sys.path.append(os.path.abspath('./irl/'))
+sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 from distance2goal import Distance2goal
-from laser2density import Laser2density
+# from laser2density import Laser2density
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
@@ -21,6 +21,29 @@ from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from traj_predict import TrajPred
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
+import tf2_ros, tf2_geometry_msgs
+
+
+tf_buffer = tf2_ros.Buffer()
+def transform_pose(input_pose, from_frame, to_frame):
+
+    # **Assuming /tf2 topic is being broadcasted
+    
+    listener = tf2_ros.TransformListener(tf_buffer)
+
+    pose_stamped = tf2_geometry_msgs.PoseStamped()
+    pose_stamped.pose = input_pose
+    pose_stamped.header.frame_id = from_frame
+    pose_stamped.header.stamp = rospy.Time.now()
+
+    try:
+        # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+        output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+        return output_pose_stamped
+
+    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+        print("No Transform found?")
+        raise
 
 class Agent():
     def __init__(self, gridsize,resolution):
@@ -35,7 +58,7 @@ class Agent():
 
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
 
-        self.odom_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.amcl_callback)
+        self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback)
 
         rospy.wait_for_service('/move_base/NavfnROS/make_plan')
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
@@ -48,7 +71,7 @@ class Agent():
 
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
-        self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+        # self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
 
         self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -94,8 +117,9 @@ class Agent():
         self.traj_feature = [[cell] for cell in data.data]
 
 
-    def amcl_callback(self,data):
-        self.robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
+    def pose_callback(self,data):
+        pose_new = transform_pose(data.pose, 'base_link', 'map')
+        self.robot_pose = np.array([pose_new.pose.pose.position.x, pose_new.pose.pose.position.y])
 
     # def path_callback(self, data):
     #     if len(data.poses) != 0:
