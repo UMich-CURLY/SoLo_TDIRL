@@ -4,6 +4,8 @@ import os
 from social_distance import SocialDistance
 
 sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/irl/'))
+sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
+
 from distance2goal import Distance2goal
 # from laser2density import Laser2density
 import numpy as np

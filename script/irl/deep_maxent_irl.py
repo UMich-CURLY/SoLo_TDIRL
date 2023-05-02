@@ -2,6 +2,7 @@ from random import randint
 import numpy as np
 import sys 
 sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
+sys.path.append("/root/miniconda3/envs/tensor/lib/python3.7/site-packages")
 import tensorflow as tf
 import mdp.gridworld as gridworld
 import mdp.value_iteration as value_iteration
@@ -19,6 +20,7 @@ class DeepIRLFC:
     self.n_h1 = n_h1
     self.n_h2 = n_h2
     self.name = name
+    print(tf.__version__)
     self.sess = tf.Session()
     self.input_s, self.reward, self.theta = self._build_network(self.name)
     # self.optimizer = tf.train.GradientDescentOptimizer(lr)

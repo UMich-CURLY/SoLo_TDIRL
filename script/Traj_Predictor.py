@@ -1,4 +1,5 @@
 import numpy as np
+sys.path.append("/root/miniconda3/envs/tensor/lib/python3.7/site-packages")
 import tensorflow as tf
 
 import os
@@ -7,7 +8,7 @@ import argparse
 import ipdb
 import sys
 
-sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/social_lstm_tf/social-lstm-tf/'))
+sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/social_lstm_tf/social-lstm-tf/social_lstm'))
 
 from social_utils import SocialDataLoader
 from social_model import SocialModel
