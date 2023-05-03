@@ -3,7 +3,7 @@ import os
 
 from social_distance import SocialDistance
 
-sys.path.append(os.path.abspath('/home/catkin_ws/src/SoLo_TDIRL/script/irl/'))
+sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
 
 from distance2goal import Distance2goal
@@ -24,8 +24,7 @@ from traj_predict import TrajPred
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 import tf2_ros, tf2_geometry_msgs
-
-
+from IPython import embed
 tf_buffer = tf2_ros.Buffer()
 def transform_pose(input_pose, from_frame, to_frame):
 
@@ -240,19 +239,25 @@ class Agent():
 
         return np.sqrt(dx**2 + dy**2)
 
-    def get_feature(self, distance,laser,goal):
+    def get_feature(self, distance,goal, laser = None):
 
         distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
 
         while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
             distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
+        if(laser):
+            localcost_feature = laser.temp_result
 
-        localcost_feature = laser.temp_result
-
-        social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
-        # print(self.distance_feature[0], self.localcost_feature[0])
-        # traj_feature, _ = self.TrajPred.get_feature_matrix()
-        current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
+            # print(self.distance_feature[0], self.localcost_feature[0])
+            # traj_feature, _ = self.TrajPred.get_feature_matrix()
+            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+        else:
+            social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
+            # print(self.distance_feature[0], self.localcost_feature[0])
+            # traj_feature, _ = self.TrajPred.get_feature_matrix()
+            current_feature = np.array([distance_feature[i] + [0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+        
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
@@ -291,9 +296,9 @@ class Agent():
 
             while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
                 
-                feature = self.get_feature(self.distance, self.laser, self.goal)
+                feature = self.get_feature(self.distance, self.goal)
 
-                # print(feature)
+                print("Feature is", feature)
 
                 reward, policy = self.get_reward_policy(feature, self.gridsize)
 
@@ -343,9 +348,9 @@ class Agent():
 
         # while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
         # while(not rospy.is_shutdown()):  
-        feature = self.get_feature(self.distance, self.laser, self.goal)
-
-        # print(feature)
+        # feature = self.get_feature(self.distance, self.laser, self.goal)
+        feature = self.get_feature(self.distance, self.goal)
+        print(feature, feature.shape)
 
         reward, policy = self.get_reward_policy(feature, self.gridsize)
 

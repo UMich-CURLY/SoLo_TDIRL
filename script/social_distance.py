@@ -6,6 +6,8 @@ from visualization_msgs.msg import MarkerArray, Marker
 import numpy as np
 import tf
 from csv import writer
+import tf2_ros, tf2_geometry_msgs
+
 
 class SocialDistance():
     def __init__(self, resolution=1.0, gridsize=(3, 3)):
@@ -20,20 +22,36 @@ class SocialDistance():
         self.invade_id = []
 
         self.people_pose = np.empty((0,3), float)
-        self.robot_sub = rospy.Subscriber("sim/robot_pose", PoseWithCovarianceStamped, self.robot_pose_callback, queue_size=1000)
+        self.robot_sub = rospy.Subscriber("sim/robot_pose", PoseStamped, self.robot_pose_callback, queue_size=1000)
         self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.people_pose_callback, queue_size=1)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1)
         
-
+        self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf.TransformListener()
         self.alpha = 0.25
         self.beta = 0.2
         self.people_size_offset = 0.2
         
+    def transform_pose(self, input_pose, from_frame, to_frame):
 
+        # **Assuming /tf2 topic is being broadcasted
+
+        pose_stamped = tf2_geometry_msgs.PoseStamped()
+        pose_stamped.pose = input_pose
+        pose_stamped.header.frame_id = from_frame
+        pose_stamped.header.stamp = rospy.Time.now()
+
+        try:
+            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+            return output_pose_stamped
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            print("No Transform found?")
+            raise
     def robot_pose_callback(self, data):
-        self.robot_pose[0] = data.pose.pose.position.x
-        self.robot_pose[1] = data.pose.pose.position.y
+        pose_new = self.transform_pose(data.pose, 'base_link', 'map')
+        self.robot_pose = np.array([pose_new.pose.pose.position.x, pose_new.pose.pose.position.y])
 
         if(len(self.previous_robot_pose) == 0):
             self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
