@@ -50,15 +50,16 @@ class SocialDistance():
             print("No Transform found?")
             raise
     def robot_pose_callback(self, data):
-        pose_new = self.transform_pose(data.pose, 'base_link', 'map')
-        self.robot_pose = np.array([pose_new.pose.pose.position.x, pose_new.pose.pose.position.y])
-
+        self.listener.waitForTransform("/base_link", "/map", rospy.Time.now(), rospy.Duration(4.0))
+        pose_new = self.listener.transformPose("/map", data)
+        # pose_new = transform_pose(data.pose, 'base_link', 'map')
+        self.robot_pose = np.array([pose_new.pose.position.x, pose_new.pose.position.y])
         if(len(self.previous_robot_pose) == 0):
-            self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
+            self.previous_robot_pose = np.array([data.pose.position.x, data.pose.position.y])
         else:
             self.robot_distance += np.sqrt((self.robot_pose[0] - self.previous_robot_pose[0])**2 + (self.robot_pose[1] - self.previous_robot_pose[1])**2)
             # print(self.robot_distance)
-            self.previous_robot_pose = np.array([data.pose.pose.position.x, data.pose.pose.position.y])
+            self.previous_robot_pose = np.array([data.pose.position.x, data.pose.position.y])
 
     def people_pose_callback(self,data):
 

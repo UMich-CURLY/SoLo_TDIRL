@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
 
 from distance2goal import Distance2goal
-# from laser2density import Laser2density
+from laser2density import Laser2density
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
@@ -25,26 +25,28 @@ from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 import tf2_ros, tf2_geometry_msgs
 from IPython import embed
-tf_buffer = tf2_ros.Buffer()
-def transform_pose(input_pose, from_frame, to_frame):
+import tf
 
-    # **Assuming /tf2 topic is being broadcasted
+# tf_buffer = tf2_ros.Buffer()
+# def transform_pose(input_pose, from_frame, to_frame):
+
+#     # **Assuming /tf2 topic is being broadcasted
     
-    listener = tf2_ros.TransformListener(tf_buffer)
+#     listener = tf2_ros.TransformListener(tf_buffer)
 
-    pose_stamped = tf2_geometry_msgs.PoseStamped()
-    pose_stamped.pose = input_pose
-    pose_stamped.header.frame_id = from_frame
-    pose_stamped.header.stamp = rospy.Time.now()
+#     pose_stamped = tf2_geometry_msgs.PoseStamped()
+#     pose_stamped.pose = input_pose
+#     pose_stamped.header.frame_id = from_frame
+#     pose_stamped.header.stamp = rospy.Time.now()
 
-    try:
-        # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-        output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
-        return output_pose_stamped
+#     try:
+#         # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+#         output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+#         return output_pose_stamped
 
-    except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-        print("No Transform found?")
-        raise
+#     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+#         print("No Transform found?")
+#         raise
 
 class Agent():
     def __init__(self, gridsize,resolution):
@@ -54,7 +56,7 @@ class Agent():
         self.NUM_FEATURE = 6
 
         # self.robot_pose = np.array([0, 0])
-
+        self.listener = tf.TransformListener()
         self.result = False
 
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
@@ -72,7 +74,7 @@ class Agent():
 
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
-        # self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+        self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
 
         self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -119,8 +121,10 @@ class Agent():
 
 
     def pose_callback(self,data):
-        pose_new = transform_pose(data.pose, 'base_link', 'map')
-        self.robot_pose = np.array([pose_new.pose.pose.position.x, pose_new.pose.pose.position.y])
+        self.listener.waitForTransform("/base_link", "/map", rospy.Time.now(), rospy.Duration(4.0))
+        pose_new = self.listener.transformPose("/map", data)
+        # pose_new = transform_pose(data.pose, 'base_link', 'map')
+        self.robot_pose = np.array([pose_new.pose.position.x, pose_new.pose.position.y])
 
     # def path_callback(self, data):
     #     if len(data.poses) != 0:
@@ -247,17 +251,22 @@ class Agent():
             distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
         if(laser):
             localcost_feature = laser.temp_result
-
+            print("Local cost feature is ",localcost_feature)
+            
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
+            print("Shape of social_distance_feature is ", social_distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            current_feature = np.array([distance_feature[i] + localcost_feature[i] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
         else:
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            current_feature = np.array([distance_feature[i] + [0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-        
+            current_feature = np.array([distance_feature[i] + [0.0] + [0.0] +[0.0] +self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            print("Shape of traj_feature is ", len(self.traj_feature))
+
+            print("Shape of distance_feature is ", len(distance_feature))
+            print("Shape of social_distance_feature is ", len(social_distance_feature))
         return current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
@@ -296,7 +305,7 @@ class Agent():
 
             while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
                 
-                feature = self.get_feature(self.distance, self.goal)
+                feature = self.get_feature(self.distance, self.goal, self.laser)
 
                 print("Feature is", feature)
 
@@ -349,7 +358,7 @@ class Agent():
         # while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
         # while(not rospy.is_shutdown()):  
         # feature = self.get_feature(self.distance, self.laser, self.goal)
-        feature = self.get_feature(self.distance, self.goal)
+        feature = self.get_feature(self.distance, self.goal, self.laser)
         print(feature, feature.shape)
 
         reward, policy = self.get_reward_policy(feature, self.gridsize)

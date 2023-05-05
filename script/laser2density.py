@@ -16,7 +16,7 @@ class Laser2density():
         self.lasersub = rospy.Subscriber("/base_scan", LaserScan, self.get_feature_matrix, queue_size=1)
         self.laser = None
         self.max_laser_dis = 25
-        self.temp_result = [0]*gridsize[0] * gridsize[1]
+        self.temp_result = [[0]]*gridsize[0] * gridsize[1]
         print("Initializing!")
         rospy.sleep(1.0)
         print("Initializing Done!")
@@ -46,11 +46,11 @@ class Laser2density():
 
         for i in range(len(self.result)):
             if(self.result[i] < 4 and self.result[i] > -4):
-                self.temp_result[i] = [0,1,0]
+                self.temp_result[i] = [[0],[1],[0]]
             elif(self.result[i] > 4):
-                self.temp_result[i] = [0,0,1]
+                self.temp_result[i] = [[0],[0],[1]]
             else:
-                self.temp_result[i] = [1,0,0]
+                self.temp_result[i] = [[1],[0],[0]]
 
         self.map_logs = np.reshape(self.result,(self.gridsize[1], self.gridsize[0]))
 

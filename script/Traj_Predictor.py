@@ -7,7 +7,7 @@ import argparse
 import ipdb
 import sys
 
-sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/social_lstm_tf/social-lstm-tf'))
+sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/social_lstm_tf/'))
 
 from social_utils import SocialDataLoader
 from social_model import SocialModel
