@@ -27,26 +27,8 @@ import tf2_ros, tf2_geometry_msgs
 from IPython import embed
 import tf
 
-# tf_buffer = tf2_ros.Buffer()
-# def transform_pose(input_pose, from_frame, to_frame):
+# 
 
-#     # **Assuming /tf2 topic is being broadcasted
-    
-#     listener = tf2_ros.TransformListener(tf_buffer)
-
-#     pose_stamped = tf2_geometry_msgs.PoseStamped()
-#     pose_stamped.pose = input_pose
-#     pose_stamped.header.frame_id = from_frame
-#     pose_stamped.header.stamp = rospy.Time.now()
-
-#     try:
-#         # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-#         output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
-#         return output_pose_stamped
-
-#     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
-#         print("No Transform found?")
-#         raise
 
 class Agent():
     def __init__(self, gridsize,resolution):
@@ -54,14 +36,15 @@ class Agent():
         rospy.init_node("main")
 
         self.NUM_FEATURE = 6
-
+        self.tf_buffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         # self.robot_pose = np.array([0, 0])
-        self.listener = tf.TransformListener()
+        # self.listener = tf.TransformListener()
         self.result = False
 
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
 
-        self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback)
+        self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback, queue_size = 100)
 
         rospy.wait_for_service('/move_base/NavfnROS/make_plan')
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
@@ -115,15 +98,37 @@ class Agent():
         # self.traj_pred.session
         print("Init Done!!!!")
 
+    def transform_pose(self,input_pose, from_frame, to_frame):
+
+        # **Assuming /tf2 topic is being broadcasted
+        
+
+        pose_stamped = tf2_geometry_msgs.PoseStamped()
+        pose_stamped.pose = input_pose
+        pose_stamped.header.frame_id = from_frame
+        pose_stamped.header.stamp = rospy.Time.now()
+
+        try:
+            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(5))
+            return output_pose_stamped
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            print("No Transform found?")
+            raise
 
     def traj_callback(self,data):
         self.traj_feature = [[cell] for cell in data.data]
 
 
     def pose_callback(self,data):
-        self.listener.waitForTransform("/base_link", "/map", rospy.Time.now(), rospy.Duration(4.0))
-        pose_new = self.listener.transformPose("/map", data)
-        # pose_new = transform_pose(data.pose, 'base_link', 'map')
+        # print(data.header)
+        # a = self.listener.waitForTransform("/base_link", "/map", rospy.Time.now(), rospy.Duration(10))
+        # # if (a):
+        
+        # pose_new = self.listener.transformPose("/map", data)
+        
+        pose_new = self.transform_pose(data.pose, 'base_link', 'map')
         self.robot_pose = np.array([pose_new.pose.position.x, pose_new.pose.position.y])
 
     # def path_callback(self, data):
@@ -252,9 +257,10 @@ class Agent():
         if(laser):
             localcost_feature = laser.temp_result
             print("Local cost feature is ",localcost_feature)
-            
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
-            print("Shape of social_distance_feature is ", social_distance_feature)
+            print("social_distance_feature is ", social_distance_feature)
+            print("traj_feature is ", self.traj_feature)
+            print("Distance_feature is ", distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
             current_feature = np.array([distance_feature[i] + localcost_feature[i] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
@@ -419,6 +425,7 @@ if __name__ == "__main__":
     resolution = 0.6
     agent = Agent(gridsize, resolution)
     success = 0
+    
     # fail = 0
     while(not rospy.is_shutdown()):
         agent.test(goal1)
