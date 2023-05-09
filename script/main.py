@@ -53,7 +53,7 @@ class Agent():
 
         self.goal_id_sub = 0
 
-        self.goal_sub = rospy.Subscriber('/move_base/goal', MoveBaseActionGoal, self.goal_callback)
+        self.goal_sub = rospy.Subscriber('/move_base/goal', MoveBaseActionGoal, self.goal_callback, queue_size = 100)
 
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
@@ -94,7 +94,7 @@ class Agent():
         # print("before load weight")
 
         self.nn_r.load_weights()
-
+        self.received_goal = False
         # self.traj_pred.session
         print("Init Done!!!!")
 
@@ -115,11 +115,11 @@ class Agent():
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("No Transform found?")
-            raise
+            pass
 
     def traj_callback(self,data):
         self.traj_feature = [[cell] for cell in data.data]
-
+        print(traj_feature)
 
     def pose_callback(self,data):
         # print(data.header)
@@ -130,7 +130,6 @@ class Agent():
         
         pose_new = self.transform_pose(data.pose, 'base_link', 'map')
         self.robot_pose = np.array([pose_new.pose.position.x, pose_new.pose.position.y])
-
     # def path_callback(self, data):
     #     if len(data.poses) != 0:
     #         current_waypoint = data.poses[0]
@@ -148,7 +147,8 @@ class Agent():
     #         self.path = []
         
     def goal_callback(self, data):
-
+        self.received_goal = True
+        print("Recived goal?  ", self.received_goal)
         reached_goal = False
         start_time = rospy.get_time()
         while(not reached_goal):
@@ -299,9 +299,12 @@ class Agent():
         return pose
 
     def main(self):
-
-        path_exec = self.path
-
+        if(self.received_goal):
+            path_exec = self.path
+            print("A* path is ", path_exec)
+        else:
+            print("No Goal received")
+            return None
         # print(path_exec)
 
         for waypoint in path_exec:
@@ -428,7 +431,7 @@ if __name__ == "__main__":
     
     # fail = 0
     while(not rospy.is_shutdown()):
-        agent.test(goal1)
+        agent.main()
         rospy.sleep(0.5)
     # while(not rospy.is_shutdown()):
     #     # First Goal
