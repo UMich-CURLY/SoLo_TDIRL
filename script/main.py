@@ -226,7 +226,7 @@ class Agent():
                     self.main()
                     self.path = []
                 else:
-                    print("path.pose == 0!!!!!")
+                    # print("path.pose == 0!!!!!")
                     self.path = []
 
                 distance2goal = np.sqrt( (self.robot_pose[0] - goal_pose[0])**2 + (self.robot_pose[1] - goal_pose[1])**2 )
@@ -263,7 +263,9 @@ class Agent():
             print("Distance_feature is ", distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            current_feature = np.array([distance_feature[i] + localcost_feature[i] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            print([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+
         else:
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print(self.distance_feature[0], self.localcost_feature[0])

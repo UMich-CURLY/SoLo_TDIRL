@@ -13,7 +13,7 @@ class Laser2density():
         self.gridsize = gridsize
         self.result = [0]*gridsize[0] * gridsize[1]
         self.resolution = resolution
-        self.lasersub = rospy.Subscriber("/base_scan", LaserScan, self.get_feature_matrix, queue_size=1)
+        self.lasersub = rospy.Subscriber("/scan", LaserScan, self.laser_callback, queue_size=10)
         self.laser = None
         self.max_laser_dis = 25
         self.temp_result = [[0]]*gridsize[0] * gridsize[1]
@@ -24,10 +24,12 @@ class Laser2density():
     
     def laser_callback(self, data):
         self.laser = data
+        self.get_feature_matrix()
     
-    def get_feature_matrix(self, data):
+    def get_feature_matrix(self):
+        if (not self.laser):
+            return laser.temp_result
         self.result = [0]*self.gridsize[0] * self.gridsize[1]
-        self.laser = data
         for i in range(len(self.laser.ranges)):
             if(self.laser.ranges[i] < self.max_laser_dis):
                 laser_angle = self.laser.angle_min + self.laser.angle_increment*i + np.pi/2.0
@@ -45,12 +47,15 @@ class Laser2density():
 
 
         for i in range(len(self.result)):
+            #### Cell is unknown
             if(self.result[i] < 4 and self.result[i] > -4):
-                self.temp_result[i] = [[0],[1],[0]]
+                self.temp_result[i] =  50 # [0,1,0]
             elif(self.result[i] > 4):
-                self.temp_result[i] = [[0],[0],[1]]
+                #### Cell is obstacle
+                self.temp_result[i] =  100  # [0,0,1]
             else:
-                self.temp_result[i] = [[1],[0],[0]]
+                #### Cell is freee 
+                self.temp_result[i] =   0   #[1,0,0]
 
         self.map_logs = np.reshape(self.result,(self.gridsize[1], self.gridsize[0]))
 
@@ -65,7 +70,7 @@ class Laser2density():
         # for i in range(self.gridsize[1]):
         #     print(self.temp_result[i*self.gridsize[1]:(i+1)*self.gridsize[1]])
         # print("------------------------")
-
+        print(self.result)
         return self.result
 
     def get_grid_index(self, position):
