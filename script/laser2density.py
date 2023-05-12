@@ -21,7 +21,7 @@ class Laser2density():
         rospy.sleep(1.0)
         print("Initializing Done!")
 
-    
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
     def laser_callback(self, data):
         self.laser = data
         self.get_feature_matrix()
