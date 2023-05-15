@@ -1,8 +1,7 @@
 import sys
 import os
 
-sys.path.append(os.path.abspath('./irl/'))
-
+sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 from cmath import e
 from unittest import result
 import rospy
@@ -15,6 +14,8 @@ import img_utils
 from Traj_Predictor import Traj_Predictor
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
+import tf2_ros
+import tf2_geometry_msgs
 # from std_msgs.msg import Float64MultiArray
 
 
@@ -24,13 +25,31 @@ class TrajPred():
         self.gridsize = gridsize
         self.resolution = resolution
         self.discount_factor = 1 / e
-        self.listener = tf.TransformListener()
+        self.tf_buffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         self.path_pub = rospy.Publisher("test_path", Path, queue_size=1000)
         self.TrajPredictor = Traj_Predictor()
         self.feature_pub = rospy.Publisher("traj_matrix", numpy_msg(Floats), queue_size=100)
         self.num_people = 1
 
+    
+    def transform_pose(self, input_pose, from_frame, to_frame):
 
+        # **Assuming /tf2 topic is being broadcasted
+
+        pose_stamped = tf2_geometry_msgs.PoseStamped()
+        pose_stamped.pose = input_pose
+        pose_stamped.header.frame_id = from_frame
+        pose_stamped.header.stamp = rospy.Time.now()
+
+        try:
+            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+            return output_pose_stamped
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            print("No Transform found?")
+            raise
     def publish_feature_matrix(self):
         '''
         traj = [[[0.      0.      0.     ]
@@ -64,12 +83,13 @@ class TrajPred():
                 global_poses[j].header.frame_id = "/map"
                 try:
                     # while(not self.listener.frameExists("/base_link") or not self.listener.frameExists("/map")):
-                    self.listener.waitForTransform("/map", "/base_link", rospy.Time.now(), rospy.Duration(4.0))
+                    # self.listener.waitForTransform("/map", "/base_link", rospy.Time.now(), rospy.Duration(4.0))
                     # print("Get the transform")
-                    local_poses[j] = self.listener.transformPose("/base_link", global_poses[j])
-
-                    local_index = self.get_grid_index([-local_poses[j].pose.position.y, local_poses[j].pose.position.x])
+                    # local_poses[j] = self.listener.transformPose("/base_link", global_poses[j])
+                    local_poses[j] = self.transform_pose(global_poses[j].pose, 'base_link', 'map')
                     # print(local_poses[j].pose.position.x, local_poses[j].pose.position.y)
+                    local_index = self.get_grid_index([-local_poses[j].pose.position.y, local_poses[j].pose.position.x])
+                    
                     # print(global_poses[j].pose.position.x, global_poses[j].pose.position.y)
                     if(self.inside_grid(local_index[0], local_index[1])):
                         result[int(local_index[1]*self.gridsize[1] + local_index[0])] += 1 * self.discount_factor**(i)
@@ -123,7 +143,7 @@ class TrajPred():
 if __name__ == "__main__":
     rospy.init_node("traj_pred")
 
-    traj_pred = TrajPred()
+    traj_pred = TrajPred(resolution=0.1, gridsize=(11,11))
     traj =  np.array([[[0.  ,    5.   ,   -4.],
                 [1.  ,    2.5,  -1]],
 

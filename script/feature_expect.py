@@ -114,6 +114,7 @@ class FeatureExpect():
         return tf_matrix
 
     def traj_callback(self,data):
+        print("inside traj callback")
         self.traj_feature = [[cell] for cell in data.data]
 
     def people_callback(self,data):
@@ -216,12 +217,12 @@ class FeatureExpect():
     def get_current_feature(self):
         # 
         self.localcost_feature = self.Laser2density.temp_result
-        print("Local cost feature is ", self.localcost_feature)
+        # print("Local cost feature is ", self.localcost_feature)
         self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # feature_list = [self.social_distance_feature]
         # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
-        self.current_feature = np.array([[self.localcost_feature[i]] + [0.0] for i in range(11*11)])
-        print("Current feature is ", self.current_feature)
+        self.current_feature = np.array([[0.0] for i in range(11*11)])
+        # print("Current feature is ", self.current_feature)
         reward_map = OccupancyGrid()
 
         reward_map.header.stamp = rospy.Time.now()
@@ -231,7 +232,7 @@ class FeatureExpect():
         reward_map.info.height = self.gridsize[1]
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-        reward_map.data = [int(cell) for cell in self.localcost_feature]
+        reward_map.data = [int(cell) for cell in self.current_feature]
 
         self.reward_pub.publish(reward_map)
 

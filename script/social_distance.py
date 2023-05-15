@@ -27,7 +27,7 @@ class SocialDistance():
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1)
         
         self.tf_buffer = tf2_ros.Buffer()
-        self.listener = tf.TransformListener()
+        self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         self.alpha = 0.25
         self.beta = 0.2
         self.people_size_offset = 0.2
@@ -188,10 +188,12 @@ class SocialDistance():
 
 
                 try:
-                    self.listener.waitForTransform("/my_map_frame", "/base_link", rospy.Time(0), rospy.Duration(4.0))
-                    pose_in_map = self.listener.transformPose("/my_map_frame", pose_base)
+                    # self.listener.waitForTransform("/my_map_frame", "/base_link", rospy.Time(0), rospy.Duration(4.0))
+                    pose_in_map = self.transform_pose(pose_base.pose, 'base_link', 'map')
+                    # pose_in_map = self.listener.transformPose("/my_map_frame", pose_base)
                 except:
                     print("Cannot get transform!!")
+                    raise
                     return None
                 pose_in_map = np.array([pose_in_map.pose.position.x, pose_in_map.pose.position.y])
                 dt, id = self.min_cell2people(pose_in_map, people_pose)

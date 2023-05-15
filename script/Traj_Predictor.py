@@ -48,14 +48,14 @@ class Traj_Predictor():
 
         self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.pose_callback, queue_size=1)
 
-        self.obs_traj = np.empty((0,30 ,3), float) # 5 x 30 x 3
+        self.obs_traj = np.empty((0,27 ,3), float) # 5 x 30 x 3
 
         self.delta_T = 0.4
 
     def pose_callback(self, states):
         # print("Into callback")
         agent_pose = np.empty((0,3), float)
-        agent_pose = np.zeros((30,3), float)
+        agent_pose = np.zeros((27,3), float)
         # print(states.header.frame_id)
         # print(len(states.agent_states))
         for i in range(len(states.poses)):
@@ -92,7 +92,7 @@ class Traj_Predictor():
 
             # add three columns zeros to x_batch
 
-            x_batch = np.vstack([x_batch, np.ones((3,30,3))])
+            x_batch = np.vstack([x_batch, np.ones((3,27,3))])
 
             # print(x_batch.shape)            
             obs_traj = x_batch[:self.sample_args.obs_length]
@@ -102,7 +102,7 @@ class Traj_Predictor():
 
 
             complete_traj = self.model.sample(self.sess, obs_traj, obs_grid, dimensions, x_batch, self.sample_args.pred_length)
-            # print( complete_traj)
+            print("Size of Compltete trajs is ", complete_traj.shape)
             return complete_traj * 29.0
             # print(complete_traj[5:].shape)
         return None
