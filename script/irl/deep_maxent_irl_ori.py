@@ -77,8 +77,8 @@ class DeepIRLFC:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights5/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights5/'))
+    new_saver = tf.train.import_meta_graph('../weights6/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights6/'))
 
   # def save_weights(self):
   #   self.theta.
@@ -521,7 +521,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
   loss_summary = tf.Summary()
 
   for j in range(1):
-
+  prev_loss = 5000
     while(True):
       
       num1 = randint(0, len(trajs)-1)
@@ -574,8 +574,9 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
         # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
       print(l2_loss)
-      if(l2_loss < 2):
+      if(abs(l2_loss - prev_l2) < 0.01):
         break
+      prev_loss = l2_loss
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
         #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)
@@ -593,7 +594,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
   # return sigmoid(normalize(rewards))
   dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
   policy = [dict[i] for i in policy]
-  print(np.array(policy).reshape(3,3))
+  print(np.array(policy).reshape(hight, width))
 
   # print(np.array(rewards).reshape(3,3))
 

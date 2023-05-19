@@ -29,7 +29,7 @@ from threading import Thread
 from IPython import embed
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
-
+from collections import deque
 def transform_pose(input_pose, from_frame, to_frame):
 
     # **Assuming /tf2 topic is being broadcasted
@@ -67,7 +67,6 @@ class FeatureExpect():
         self.sub_goal = rospy.Subscriber("move_base_simple/goal", PoseStamped, self.goal_callback, queue_size=100)
         self.robot_pose = [0.0, 0.0]
         self.previous_robot_pose = []
-        self.robot_pose_rb = [0.0, 0.0]
         self.robot_distance = 0.0
         self.position_offset = [0.0,0.0]
         self.trajectory = []
@@ -88,6 +87,11 @@ class FeatureExpect():
         self.delta_t = 0.0
         self.pose_people_tf = np.empty((0,4 ,4), float)
         self.reward_pub = rospy.Publisher("reward_map", OccupancyGrid, queue_size=1000)
+        self.discrete_step_counter = np.zeros(int(self.gridsize[0]*0.5/self.resolution))
+        self.counter = 0
+        self.robot_poses = deque()
+        self.trajs = deque()
+        self.bad_feature = False
         # self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         # self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
         # self.initpose = PoseWithCovarianceStamped()
@@ -98,8 +102,8 @@ class FeatureExpect():
     #     self.initpose_get = True
 
     def get_robot_pose(self):
-        self.tf_listener.waitForTransform("/my_map_frame", "/base_link", rospy.Time(), rospy.Duration(4.0))
-        (trans,rot) = self.tf_listener.lookupTransform('/my_map_frame', '/base_link', rospy.Time(0))
+        self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
+        (trans,rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
         self.robot_pose = [trans[0], trans[1]]
         if(len(self.previous_robot_pose) == 0):
             self.previous_robot_pose = self.robot_pose
@@ -110,7 +114,7 @@ class FeatureExpect():
         tf_matrix[0][3] = trans[0]
         tf_matrix[1][3] = trans[1]
         tf_matrix[2][3] = trans[2]
-        # print(tf_matrix)
+        # print(tf_matrix)         
         return tf_matrix
 
     def traj_callback(self,data):
@@ -133,6 +137,9 @@ class FeatureExpect():
     def goal_callback(self,data):
         self.goal = data
         self.received_goal = True
+        # self.robot_poses = deque()
+        # self.trajs = deque()
+        # self.bad_feature = False
         print("Goal Received")
 
     # def people_callback(self,data):
@@ -204,6 +211,8 @@ class FeatureExpect():
 
             x = (-pose[1] + self.gridsize[1]*self.resolution / 2.0) // self.resolution
             # print([x, y]) # (1,2) -> (1,1) -> (0,1)
+            if (x<0 or y<0):
+                return None
             return [x, y]
         else:
             return None
@@ -221,10 +230,23 @@ class FeatureExpect():
         self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # feature_list = [self.social_distance_feature]
         # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
-        self.current_feature = np.array([[0.0] for i in range(11*11)])
+        self.distance_feature = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
         # print("Current feature is ", self.current_feature)
+        if (self.received_goal):
+            self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
+            if (not self.distance_feature):
+                self.bad_feature = True
+                return
+            else:
+                self.bad_feature = False
+            if (np.linalg.norm(self.distance_feature-np.zeros(len(self.distance_feature)))<0.1):
+                self.recived_goal = False
+                print(self.distance_feature)
+                print("Finished this goal, need new one")
+                exit(0)
+        self.current_feature = np.array([[self.distance_feature[i]] for i in range(len(self.distance_feature))])
+        self.feature_maps.append(np.array(self.current_feature).T)
         reward_map = OccupancyGrid()
-
         reward_map.header.stamp = rospy.Time.now()
         reward_map.header.frame_id = "base_link"
         reward_map.info.resolution = self.resolution
@@ -233,61 +255,86 @@ class FeatureExpect():
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
         reward_map.data = [int(cell) for cell in self.current_feature]
-
         self.reward_pub.publish(reward_map)
+        single_feature = np.array(self.current_feature).T
+        if (self.received_goal):
+            fm_file = "../dataset/fm/fm_"+str(self.counter)+".npz"
+            # np.savez(fm_file, *single_feature)
+            self.counter +=1
 
-        # if (self.received_goal):
-        #     self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
-        #     self.current_feature = np.array([self.distance_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
-        #     self.feature_maps.append(np.array(self.current_feature).T)
-
+    def get_index_in_robot_frame(self, origin_pose, current_pose):
+        robot_pose_rb = [0.0,0.0]
+        R = np.dot(np.linalg.inv(origin_pose), current_pose)
+        robot_pose_rb = np.dot(R, np.array([[0, 0, 0, 1]]).T)
+        robot_pose_rb = [robot_pose_rb[0][0], robot_pose_rb[1][0]]
+        index = self.in_which_cell(robot_pose_rb)
+        return index, robot_pose_rb
+        
     def get_expect(self):
+        if (not self.received_goal):
+            return
         R1 = self.get_robot_pose()
-
+        try:
+            if ((R1 == self.robot_poses[-1]).all()):
+                return 
+        except:
+            pass
+        self.robot_poses.append(R1)
+        index, pose = self.get_index_in_robot_frame(R1,R1)
+        unraveled_index = index[1]*self.gridsize[1]+index[0]
+        self.trajs.append([unraveled_index])
         self.get_current_feature()
-
+        if (self.bad_feature):
+            return
+        
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
-
-        self.robot_pose_rb = [0.0,0.0]
-        
-        index = self.in_which_cell(self.robot_pose_rb)
-        percent_temp = 0
-        while(index):
+        percent_temp = 0        
+        traj_files = []
+        print("Len of robot_poses and current counter and trajs", len(self.robot_poses), self.counter, len(self.trajs))
+        remove_indices = []
+        distance = np.sqrt((self.robot_pose[0] - self.goal.pose.position.x)**2+(self.robot_pose[1] - self.goal.pose.position.y)**2)
+        for i in range(len(self.robot_poses)):
             # Robot pose
-            R2 = self.get_robot_pose()
-            
-            R = np.dot(np.linalg.inv(R1), R2)
-
-            self.robot_pose_rb = np.dot(R, np.array([[0, 0, 0, 1]]).T)
-
-            self.robot_pose_rb = [self.robot_pose_rb[0][0], self.robot_pose_rb[1][0]]
-            self.get_current_feature()
-            index = self.in_which_cell(self.robot_pose_rb)
-            print("Relative robot_pose is ", self.robot_pose_rb, "Index is ", index)
-            distance = np.sqrt((self.robot_pose[0] - self.goal.pose.position.x)**2+(self.robot_pose[1] - self.goal.pose.position.y)**2)
-            if(distance < 0.1 or not index):
-                break
-            if(not index in self.trajectory):
-                self.trajectory.append(index)
-            
+            index, robot_pose_rb = self.get_index_in_robot_frame(self.robot_poses[i], R1)
+            if(distance < 0.2 or not index):
+                remove_indices.append(i)
+                traj_counter = int(i+(self.counter - len(self.robot_poses)))
+                
+                traj_files.append(["../dataset/trajs/trajs_"+str(traj_counter)+".npz"])
+                print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
+                if (distance <0.1):
+                    print("Finished a goal! ")
+                    self.received_goal = False
+                #### Save the traj queue here #### 
+                continue
+            unraveled_index = index[1]*self.gridsize[1]+index[0]
+            print("Relative robot_pose is ", robot_pose_rb, "Index is ", index)
+            if(not unraveled_index in self.trajs[i]):
+                self.trajs[i].append(unraveled_index)
+            # print("trajs array is ", self.trajs[i])
+        print("distance ", distance)
             # Whether the robot reaches the goal
-            
+        
+        for j in range(len(remove_indices)):
+            index = int(remove_indices[j])
+            np.savez(traj_files[j][0], self.trajs[index])
+            del self.robot_poses[index]
+            # np.savez(traj_files[index][0], self.trajs[index])
+            del self.trajs[index]
+            remove_indices = remove_indices-np.ones(len(remove_indices))
+            print("writing the traj file and removing index ", index, remove_indices)
             # print("distance: ", distance)
-            step_list = []
-            
-            rospy.sleep(0.1)
+        # self.traj = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
 
-        self.traj = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
-
-        if(len(self.traj) > 1):
-            self.trajs.append(np.array(self.traj))
+        # if(len(self.traj) > 1):
+        #     self.trajs.append(np.array(self.traj))
         
-        discount = [(1/e)**i for i in range(len(self.trajectory))]
-        # for i in range(len(discount)):
+        # discount = [(1/e)**i for i in range(len(self.trajectory))]
+        # # for i in range(len(discount)):
 
-        #     self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
+        # #     self.feature_expect += np.dot(self.current_feature[int(self.trajectory[i][1] * self.gridsize[1] + self.trajectory[i][0])], discount[i])
         
-        self.trajectory = []
+        # self.trajectory = []
 
         # num_changes = abs(sum(self.percent_reward)) / self.robot_distance
 
@@ -319,7 +366,7 @@ class FeatureExpect():
 if __name__ == "__main__":
         rospy.init_node("Feature_expect",anonymous=False)
         # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
-        feature = FeatureExpect(resolution=0.1, gridsize=(11,11))
+        feature = FeatureExpect(resolution=0.5, gridsize=(3,3))
 
         fm_file = "../dataset/fm/fm.npz"
         traj_file = "../dataset/trajs/trajs.npz"
@@ -329,14 +376,9 @@ if __name__ == "__main__":
         rospy.sleep(1)
         # while(not feature.received_goal):
         #     rospy.sleep(0.1)
-        feature.get_current_feature()
         # np.savez(fm_file, *feature.feature_maps)
         print("Feature map is ", feature.feature_maps)
         print("Rospy shutdown", rospy.is_shutdown())
         while(not rospy.is_shutdown()):
             feature.get_expect()
-            print("Traj is ", feature.trajs)
-            if(len(feature.traj) > 1):
-                # np.savez(traj_file, *feature.trajs)
-                print("One demonstration finished!!")
-            rospy.sleep(0.1)
+            rospy.sleep(0.5)

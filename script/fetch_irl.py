@@ -2,7 +2,7 @@ from cmath import sqrt
 from pyexpat import features
 from turtle import shape
 
-from matplotlib.colors import same_color
+# from matplotlib.colors import same_color
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -12,10 +12,10 @@ import random
 import sys
 import os
 
-
+from IPython import embed
 # from script.irl.deep_maxent_irl import deep_maxent_irl_fetch
 
-sys.path.append(os.path.abspath('./irl/'))
+sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 
 import img_utils
 from mdp import gridworld
@@ -189,13 +189,14 @@ class IRL_Agent():
         traj = []
         for filename in os.listdir("../dataset/trajs/"):
             # print(filename)
-            number_str = ""
+            number_str = "_"
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
             with np.load(os.path.join("../dataset/trajs", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
                 with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
+                    print(file_fm_name)
                     for i in range(len(data.files)):
                         traj_name = 'arr_{}'.format(i)
                         cur_traj_len = len(data[traj_name])
@@ -257,6 +258,7 @@ class IRL_Agent():
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
+        print("Starting training process")
         rewards = deep_maxent_irl_traj_loss(self.fms, P_a, self.GAMMA, self.trajs,self.percent_change, self.LEARNING_RATE, self.N_ITERS)
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
@@ -331,10 +333,10 @@ if __name__=="__main__":
     irl_agent = IRL_Agent()
     # irl_agent.read_csv_train_multi_trajs()
 
-    irl_agent.train_multi_trajs()
+    # irl_agent.train_multi_trajs()
     # irl_agent.train()
-    # irl_agent.train_without_trajloss()
     # irl_agent.eval()
+    irl_agent.train_without_trajloss()
 
     # irl_agent.read_csv_test()
     # irl_agent.read_csv()

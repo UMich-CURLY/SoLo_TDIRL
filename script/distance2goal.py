@@ -6,38 +6,54 @@ import rospy
 from geometry_msgs.msg import PoseStamped
 import numpy as np
 from IPython import embed
-
+import tf2_ros
+import tf2_geometry_msgs
 class Distance2goal():
 
     def __init__(self, gridsize=(3,3), resolution=1):
         # gridsize: a tuple describe the size of grid, default (3,3)
         self.gridsize = gridsize
         self.resolution = resolution
-        self.listener = tf.TransformListener()
+        self.tf_buffer = tf2_ros.Buffer()
+        self.listener = tf2_ros.TransformListener(self.tf_buffer) 
 
-    
+    def transform_pose(self, input_pose, from_frame, to_frame):
+
+        # **Assuming /tf2 topic is being broadcasted
+
+        pose_stamped = tf2_geometry_msgs.PoseStamped()
+        pose_stamped.pose = input_pose
+        pose_stamped.header.frame_id = from_frame
+        pose_stamped.header.stamp = rospy.Time.now()
+
+        try:
+            # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+            return output_pose_stamped
+
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
+            print("No Transform found?")
+            return None 
+            raise
     def get_feature_matrix(self, goal):
         # Goal should be in PoseStamped form
         result = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
-        try:
-            frame_id = goal.header.frame_id
-            self.listener.waitForTransform(frame_id, "/base_link", rospy.Time(0), rospy.Duration(4.0))
-            goal_in_base = self.listener.transformPose("/base_link", goal)
-            print("Goal in base link ", goal_in_base)
-            for x in range(self.gridsize[0]):
-                for y in range(self.gridsize[1]):
-                    grid_center_x, grid_center_y = self.get_grid_center_position([x , y])
-                    distance = sqrt(pow(grid_center_x - goal_in_base.pose.position.x, 2) + pow(grid_center_y - goal_in_base.pose.position.y, 2))
-                    # distance = exp(abs(distance))
-                    result[y * self.gridsize[1] + x] = distance
+        frame_id = goal.header.frame_id
+        
+        goal_in_base = self.transform_pose(goal.pose, frame_id, "base_link")
+        if (not goal_in_base):
+            return None
+        # print("Goal in base link ", goal_in_base)  
+        for x in range(self.gridsize[0]):
+            for y in range(self.gridsize[1]):
+                grid_center_x, grid_center_y = self.get_grid_center_position([x , y])
+                distance = sqrt(pow(grid_center_x - goal_in_base.pose.position.x, 2) + pow(grid_center_y - goal_in_base.pose.position.y, 2))
+                # distance = exp(abs(distance))
+                result[y * self.gridsize[1] + x] = distance
 
-            max_distance = max(result)
-            min_distance = min(result)
-
-            result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
-        except:
-            print("Do not get transform!")
-            pass
+        max_distance = max(result)
+        min_distance = min(result)
+        result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
         # result = [[result[i]] for i in range(len(result))]
 
         # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])

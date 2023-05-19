@@ -474,7 +474,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
         # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
       print(l2_loss)
-      if(l2_loss < 2):
+      if(l2_loss < 10):
         break
         # with train_summary_writer.as_default():
         #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
@@ -493,7 +493,8 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
   # return sigmoid(normalize(rewards))
   dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
   policy = [dict[i] for i in policy]
-  print(np.array(policy).reshape(3,3))
+
+  print(np.array(policy).reshape(hight,width))
 
   # print(np.array(rewards).reshape(3,3))
 
