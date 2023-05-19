@@ -521,7 +521,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
   loss_summary = tf.Summary()
 
   for j in range(1):
-  prev_loss = 5000
+    prev_loss = 5000
     while(True):
       
       num1 = randint(0, len(trajs)-1)
@@ -574,7 +574,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
         # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
         # train_summary_writer.add_summary(l2_loss, global_step=i*n_iters + iteration)
       print(l2_loss)
-      if(abs(l2_loss - prev_l2) < 0.01):
+      if(abs(l2_loss - prev_loss) < 0.0001):
         break
       prev_loss = l2_loss
         # with train_summary_writer.as_default():

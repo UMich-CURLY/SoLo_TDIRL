@@ -259,7 +259,7 @@ class FeatureExpect():
         single_feature = np.array(self.current_feature).T
         if (self.received_goal):
             fm_file = "../dataset/fm/fm_"+str(self.counter)+".npz"
-            # np.savez(fm_file, *single_feature)
+            np.savez(fm_file, *single_feature)
             self.counter +=1
 
     def get_index_in_robot_frame(self, origin_pose, current_pose):
