@@ -244,7 +244,7 @@ class FeatureExpect():
                 print(self.distance_feature)
                 print("Finished this goal, need new one")
                 exit(0)
-        self.current_feature = np.array([[self.distance_feature[i]] for i in range(len(self.distance_feature))])
+        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
         self.feature_maps.append(np.array(self.current_feature).T)
         reward_map = OccupancyGrid()
         reward_map.header.stamp = rospy.Time.now()

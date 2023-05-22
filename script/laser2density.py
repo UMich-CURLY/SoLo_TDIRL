@@ -49,13 +49,13 @@ class Laser2density():
         for i in range(len(self.result)):
             #### Cell is unknown
             if(self.result[i] < 4 and self.result[i] > -4):
-                self.temp_result[i] =  50 # [0,1,0]
+                self.temp_result[i] =  [0,1,0]
             elif(self.result[i] > 4):
                 #### Cell is obstacle
-                self.temp_result[i] =  100  # [0,0,1]
+                self.temp_result[i] =  [0,0,1]
             else:
                 #### Cell is freee 
-                self.temp_result[i] =   0   #[1,0,0]
+                self.temp_result[i] =   [1,0,0]
 
         self.map_logs = np.reshape(self.result,(self.gridsize[1], self.gridsize[0]))
 
@@ -70,7 +70,6 @@ class Laser2density():
         # for i in range(self.gridsize[1]):
         #     print(self.temp_result[i*self.gridsize[1]:(i+1)*self.gridsize[1]])
         # print("------------------------")
-        print(self.result)
         return self.result
 
     def get_grid_index(self, position):

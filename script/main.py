@@ -263,7 +263,7 @@ class Agent():
             print("Distance_feature is ", distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            print([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
             current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
 
         else:
@@ -390,7 +390,7 @@ class Agent():
         policy = np.reshape(policy, self.gridsize)
 
         self.controller.get_irl_path(policy)       
-        self.controller.irl_path.header.frame_id = 'map'
+        self.controller.irl_path.header.frame_id = 'my_map_frame'
         self.controller.irl_path.header.stamp = rospy.Time.now()
 
         if(self.controller.error):
@@ -427,7 +427,7 @@ if __name__ == "__main__":
     goal1 = np.array([0,4])
     goal2 = np.array([0,-4])
     gridsize = np.array([3, 3])
-    resolution = 0.6
+    resolution = 0.5
     agent = Agent(gridsize, resolution)
     success = 0
     
