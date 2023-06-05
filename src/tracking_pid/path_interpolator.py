@@ -318,6 +318,7 @@ class InterpolatorNode(object):
         self._path_sub = rospy.Subscriber("path", Path, self._accept_path_from_topic, queue_size=1)
         self._path_pub = rospy.Publisher("path/viz", Path, queue_size=1, latch=True)
         self._as = actionlib.SimpleActionServer("follow_path", FollowPathAction, auto_start=False)
+        print("Is starting bad")
         self._as.register_goal_callback(self._accept_goal)
         self._as.start()
 
