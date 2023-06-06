@@ -4,24 +4,24 @@
     <!-- <arg name="rviz" default="false"/> -->
 
     <!-- Interpolator -->
-    <node name="interpolator" pkg="tracking_pid" type="path_interpolator" output="screen">
-        <param name="target_x_vel" value="0.5"/>
-        <param name="target_yaw_vel" value = "0.1"/>
-        <param name="target_yaw_acc" value = "0.2"/>
-        <param name="target_x_acc" value="2.5"/>
-        <!-- <param name="rate" value="1"/> -->
-        <param name="flip_for_axis" value="Z"/>
-    </node>
 
-    <!-- PID controller -->
-    <node name="controller" pkg="tracking_pid" type="controller" output="screen">
-      <!-- <remap from="/path" to="/irl_path"/> -->
-      <remap from="move_base/cmd_vel" to="/cmd_vel"/>
-      <remap from="local_trajectory" to="trajectory"/>
-      <param name="controller_debug_enabled" value="True"/>
-      <param name="l" value="0.1"/>
-      <param name="track_base_link" value="True"/>
-      <!-- <param name="Kp_long" value="5.0"/> -->
-    </node>
+  <node name="interpolator" pkg="tracking_pid" type="path_interpolator">
+      <param name="target_x_vel" value="0.5"/>
+      <param name="target_yaw_vel" value = "0.5"/>
+      <param name="target_yaw_acc" value = "0.2"/>
+      <param name="target_x_acc" value="100"/>
+      <remap from="/path" to="/move_base/NavfnROS/plan"/>
+      <!-- <param name="flip_for_axis" value="Y"/> -->
+  </node>
 
+  <!-- PID controller -->
+  <node name="controller" pkg="tracking_pid" type="controller" output="screen">
+    <remap from="/path" to="/move_base/NavfnROS/plan"/>
+    <remap from="move_base/cmd_vel" to="/cmd_vel"/>
+    <remap from="local_trajectory" to="trajectory"/>
+    <param name="base_link_frame" value="base_frame"/>
+    <param name="map_frame" value="map"/>
+    <param name="controller_debug_enabled" value="True"/>
+    <param name="l" value="0.2"/>
+  </node>
 </launch>
