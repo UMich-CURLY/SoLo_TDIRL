@@ -14,7 +14,7 @@ class Distance2goal():
         # gridsize: a tuple describe the size of grid, default (3,3)
         self.gridsize = gridsize
         self.resolution = resolution
-        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_buffer = tf2_ros.Buffer(rospy.Duration(5))
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
 
     def transform_pose(self, input_pose, from_frame, to_frame):
@@ -28,7 +28,7 @@ class Distance2goal():
 
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1.0))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(5))
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):

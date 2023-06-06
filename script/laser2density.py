@@ -28,7 +28,7 @@ class Laser2density():
     
     def get_feature_matrix(self):
         if (not self.laser):
-            return laser.temp_result
+            return self.laser.temp_result
         self.result = [0]*self.gridsize[0] * self.gridsize[1]
         for i in range(len(self.laser.ranges)):
             if(self.laser.ranges[i] < self.max_laser_dis):

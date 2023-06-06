@@ -257,14 +257,14 @@ class Agent():
         if(laser):
             localcost_feature = laser.temp_result
             print("Local cost feature is ",localcost_feature)
-            social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
-            print("social_distance_feature is ", social_distance_feature)
+            # social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
+            # print("social_distance_feature is ", social_distance_feature)
             print("traj_feature is ", self.traj_feature)
             print("Distance_feature is ", distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            # print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
 
         else:
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())

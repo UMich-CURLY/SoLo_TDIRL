@@ -26,7 +26,7 @@ class SocialDistance():
         self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.people_pose_callback, queue_size=1)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1)
         
-        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_buffer = tf2_ros.Buffer(rospy.Duration(5))
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         self.alpha = 0.25
         self.beta = 0.2
@@ -43,7 +43,7 @@ class SocialDistance():
 
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(4.0))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame , timeout = rospy.Duration(5))
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
