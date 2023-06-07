@@ -39,7 +39,8 @@ class Agent():
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         # self.robot_pose = np.array([0, 0])
-        # self.listener = tf.TransformListener()
+        self.listener1 = tf.TransformListener()
+        self.use_tf1 = True
         self.result = False
 
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
@@ -107,15 +108,24 @@ class Agent():
         pose_stamped.pose = input_pose
         pose_stamped.header.frame_id = from_frame
         pose_stamped.header.stamp = rospy.Time.now()
-
+        if (self.use_tf1):
+            try:
+                
+                self.listener1.waitForTransform(from_frame, to_frame, rospy.Time.now(), rospy.Duration(4.0))
+                output_pose_stamped = self.listener1.transformPose(to_frame, pose_stamped)
+                return output_pose_stamped
+            except:
+                embed()
+                print("No Transform found?")
+                raise
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(5))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(50))
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("No Transform found?")
-            pass
+            raise
 
     def traj_callback(self,data):
         self.traj_feature = [[cell] for cell in data.data]
