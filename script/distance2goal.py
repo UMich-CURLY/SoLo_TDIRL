@@ -24,11 +24,11 @@ class Distance2goal():
         pose_stamped = tf2_geometry_msgs.PoseStamped()
         pose_stamped.pose = input_pose
         pose_stamped.header.frame_id = from_frame
-        pose_stamped.header.stamp = rospy.Time.now()
-
+        pose_stamped.header.stamp = rospy.Time.now() - rospy.Duration(1)
+        print("Time in distance is ", pose_stamped.header.stamp)
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(5))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1))
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -42,7 +42,7 @@ class Distance2goal():
         
         goal_in_base = self.transform_pose(goal.pose, frame_id, "base_link")
         if (not goal_in_base):
-            return None
+            return result
         # print("Goal in base link ", goal_in_base)  
         for x in range(self.gridsize[0]):
             for y in range(self.gridsize[1]):

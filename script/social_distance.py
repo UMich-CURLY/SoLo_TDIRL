@@ -22,7 +22,7 @@ class SocialDistance():
         self.invade_id = []
 
         self.people_pose = np.empty((0,3), float)
-        self.robot_sub = rospy.Subscriber("sim/robot_pose", PoseStamped, self.robot_pose_callback, queue_size=1000)
+        self.robot_sub = rospy.Subscriber("sim/robot_pose", PoseStamped, self.robot_pose_callback, queue_size=10)
         self.people_sub = rospy.Subscriber("sim/agent_poses", PoseArray, self.people_pose_callback, queue_size=1)
         self.marker_distance_pub = rospy.Publisher("/social_distance_markers", MarkerArray, queue_size=1)
         

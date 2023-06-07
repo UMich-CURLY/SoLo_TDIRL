@@ -106,16 +106,17 @@ class Agent():
         pose_stamped = tf2_geometry_msgs.PoseStamped()
         pose_stamped.pose = input_pose
         pose_stamped.header.frame_id = from_frame
-        pose_stamped.header.stamp = rospy.Time.now()
-
+        pose_stamped.header.stamp = rospy.Time.now() - rospy.Duration(1.0)
+        print("Time in main is ", pose_stamped.header.stamp)
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(5))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1))
+            print (output_pose_stamped)
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("No Transform found?")
-            pass
+            raise
 
     def traj_callback(self,data):
         self.traj_feature = [[cell] for cell in data.data]
@@ -267,10 +268,11 @@ class Agent():
             current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
 
         else:
+            print("No laser right?")
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            current_feature = np.array([distance_feature[i] + [0.0] + [0.0] +[0.0] +self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            current_feature = np.array([distance_feature[i] + [0.0] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
             print("Shape of traj_feature is ", len(self.traj_feature))
 
             print("Shape of distance_feature is ", len(distance_feature))
@@ -305,7 +307,7 @@ class Agent():
             path_exec = self.path
             print("A* path is ", path_exec)
         else:
-            print("No Goal received")
+            # print("No Goal received")
             return None
         # print(path_exec)
 
@@ -434,7 +436,7 @@ if __name__ == "__main__":
     # fail = 0
     while(not rospy.is_shutdown()):
         agent.main()
-        rospy.sleep(0.5)
+        # rospy.sleep(0.5)
     # while(not rospy.is_shutdown()):
     #     # First Goal
     #     start = input("Input any key when you are ready: ")

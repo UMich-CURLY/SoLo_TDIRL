@@ -16,7 +16,7 @@ class Laser2density():
         self.lasersub = rospy.Subscriber("/scan", LaserScan, self.laser_callback, queue_size=10)
         self.laser = None
         self.max_laser_dis = 25
-        self.temp_result = [[0]]*gridsize[0] * gridsize[1]
+        self.temp_result = [[1,0,0]]*gridsize[0] * gridsize[1]
         print("Initializing!")
         rospy.sleep(1.0)
         print("Initializing Done!")
