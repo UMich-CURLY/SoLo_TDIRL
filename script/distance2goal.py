@@ -14,7 +14,7 @@ class Distance2goal():
         # gridsize: a tuple describe the size of grid, default (3,3)
         self.gridsize = gridsize
         self.resolution = resolution
-        self.tf_buffer = tf2_ros.Buffer(rospy.Duration(5))
+        self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
 
     def transform_pose(self, input_pose, from_frame, to_frame):
@@ -33,8 +33,8 @@ class Distance2goal():
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("No Transform found?")
-            return None 
             raise
+            return None 
     def get_feature_matrix(self, goal):
         # Goal should be in PoseStamped form
         result = [0 for i in range(self.gridsize[0] * self.gridsize[1])]

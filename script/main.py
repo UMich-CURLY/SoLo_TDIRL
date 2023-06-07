@@ -39,7 +39,8 @@ class Agent():
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         # self.robot_pose = np.array([0, 0])
-        # self.listener = tf.TransformListener()
+        self.listener1 = tf.TransformListener()
+        self.use_tf1 = True
         self.result = False
 
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
@@ -116,7 +117,7 @@ class Agent():
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
             print("No Transform found?")
-            raise
+            pass
 
     def traj_callback(self,data):
         self.traj_feature = [[cell] for cell in data.data]
