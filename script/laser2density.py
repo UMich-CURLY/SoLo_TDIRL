@@ -38,7 +38,7 @@ class Laser2density():
 
                 if(abs(laser_x) <= self.gridsize[0]*self.resolution / 2.0 and laser_y <= self.gridsize[0]*self.resolution and laser_y >= 0):
                     self.increase_log_odds(laser_x, laser_y)
-                self.scoreRay(laser_x, laser_y)
+                # self.scoreRay(laser_x, laser_y)
 
 
         # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
