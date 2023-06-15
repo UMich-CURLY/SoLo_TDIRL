@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
 
 from distance2goal import Distance2goal
-from laser2density import Laser2density
+from laser2density_new import laser2density
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
@@ -58,7 +58,7 @@ class Agent():
 
         self.distance = Distance2goal(gridsize=gridsize, resolution=resolution)
 
-        self.laser = Laser2density(gridsize=gridsize, resolution=resolution)
+        self.laser = laser2density(gridsize=gridsize, resolution=resolution)
 
         self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -257,16 +257,16 @@ class Agent():
         while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
             distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
         if(laser):
-            localcost_feature = laser.temp_result
-            print("Local cost feature is ",localcost_feature)
+            localcost_feature = laser.get_feature_matrix()
+            print("Local cost feature is ", localcost_feature)
             # social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print("social_distance_feature is ", social_distance_feature)
-            print("traj_feature is ", self.traj_feature)
-            print("Distance_feature is ", distance_feature)
+            # print("traj_feature is ", self.traj_feature)
+            # print("Distance_feature is ", distance_feature)
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
             # print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
+            current_feature = np.array([[0.0] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
 
         else:
             print("No laser right?")
