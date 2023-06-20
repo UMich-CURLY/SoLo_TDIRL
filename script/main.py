@@ -26,9 +26,11 @@ from rospy_tutorials.msg import Floats
 import tf2_ros, tf2_geometry_msgs
 from IPython import embed
 import tf
+from visualization_msgs.msg import Marker, MarkerArray
 
 # 
 
+LOOKAHEAD_DIST = 1.5
 
 class Agent():
     def __init__(self, gridsize,resolution):
@@ -46,7 +48,7 @@ class Agent():
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
 
         self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback, queue_size = 100)
-
+        self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
         rospy.wait_for_service('/move_base/NavfnROS/make_plan')
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
 
@@ -71,7 +73,7 @@ class Agent():
 
         self.traj_feature = [[0.0] for i in range(gridsize[0] * gridsize[1])]
 
-        # self.goal = goal
+        self.goal = None
 
         self.path = []
 
@@ -150,56 +152,69 @@ class Agent():
         
     def goal_callback(self, data):
         self.received_goal = True
-        print("Recived goal?  ", self.received_goal)
+        print("Received goal?  ", self.received_goal)
         reached_goal = False
-        start_time = rospy.get_time()
-        while(not reached_goal):
-            self.goal_id_sub = data.header.seq
-            # print(data.header.frame_id)
-            path_srv = GetPlan()
-            path_srv.start = self.nparray2posestamped(self.robot_pose)
-            path_srv.goal = data.goal.target_pose
-            path_srv.tolerance = 0.1
-            path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
-            path = path_response.plan
+        # start_time = rospy.get_time()
+        self.target_goal_pose = data.goal.target_pose
+        path_srv = GetPlan()
+        path_srv.start = self.nparray2posestamped(self.robot_pose)
+        path_srv.goal = data.goal.target_pose
+        path_srv.tolerance = 0.1
+        path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
+        path = path_response.plan
 
-            if len(path.poses) != 0:
-                current_waypoint = path.poses[0]
-                goal = path.poses[-1]
+        if len(path.poses) != 0:
+            self.current_waypoint = path.poses[0]
+            self.goal = path.poses[-1]
+        else:
+            print ("No ptah found")
+        # while(not reached_goal):
+        #     self.goal_id_sub = data.header.seq
+        #     # print(data.header.frame_id)
+        #     path_srv = GetPlan()
+        #     path_srv.start = self.nparray2posestamped(self.robot_pose)
+        #     path_srv.goal = data.goal.target_pose
+        #     path_srv.tolerance = 0.1
+        #     path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
+        #     path = path_response.plan
 
-                for waypoint in path.poses:
-                    if waypoint != goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
-                        # current_waypoint = waypoint
-                        # self.path.append(waypoint)
-                        continue
-                    else:
-                        current_waypoint = waypoint
-                        self.path.append(waypoint)
-                self.main()
-                self.path = []
+        #     if len(path.poses) != 0:
+        #         current_waypoint = path.poses[0]
+        #         goal = path.poses[-1]
 
-                distance2goal = np.sqrt( (self.robot_pose[0] - data.goal.target_pose.pose.position.x)**2 + (self.robot_pose[1] - data.goal.target_pose.pose.position.y)**2 )
-                if(distance2goal <= self.dis_thrd * 1.5):
-                    print("Reached the goal!!!")
-                    reached_goal = True
-                    self.success += 1.0
-                else:
-                    print("Failed!!!")
-                    reached_goal = False
-                    self.fail += 1.0
-            else:
-                print("path.pose == 0!!!!!")
-                self.path = []
+        #         for waypoint in path.poses:
+        #             if waypoint != goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
+        #                 # current_waypoint = waypoint
+        #                 # self.path.append(waypoint)
+        #                 continue
+        #             else:
+        #                 current_waypoint = waypoint
+        #                 self.path.append(waypoint)
+        #         self.main()
+        #         self.path = []
+
+        #         distance2goal = np.sqrt( (self.robot_pose[0] - data.goal.target_pose.pose.position.x)**2 + (self.robot_pose[1] - data.goal.target_pose.pose.position.y)**2 )
+        #         if(distance2goal <= self.dis_thrd * 1.5):
+        #             print("Reached the goal!!!")
+        #             reached_goal = True
+        #             self.success += 1.0
+        #         else:
+        #             print("Failed!!!")
+        #             reached_goal = False
+        #             self.fail += 1.0
+        #     else:
+        #         print("path.pose == 0!!!!!")
+        #         self.path = []
             
-        end_time = rospy.get_time()
+        # end_time = rospy.get_time()
 
-        print("Time spent is: ", end_time - start_time)
-        print("Sucessful rate: ", self.success/(self.success + self.fail))
+        # print("Time spent is: ", end_time - start_time)
+        # print("Sucessful rate: ", self.success/(self.success + self.fail))
 
 
-        if(self.social_distance.robot_distance != 0):
-            print("robot distance is: ", self.social_distance.robot_distance)
-            print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
+        # if(self.social_distance.robot_distance != 0):
+        #     print("robot distance is: ", self.social_distance.robot_distance)
+        #     print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
 
     def multiplegoal_planner(self, goallist):
         for goal_pose in goallist:
@@ -250,14 +265,14 @@ class Agent():
 
         return np.sqrt(dx**2 + dy**2)
 
-    def get_feature(self, distance,goal, laser = None):
+    def get_feature(self, distance, goal, laser = None):
 
-        distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
-
-        while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
-            distance_feature = distance.get_feature_matrix(self.nparray2posestamped(goal))
+        distance_feature = distance.get_feature_matrix(goal)
+        print ("Distance feature is and goal is ", distance_feature, goal)
+        # while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
+        #     distance_feature = distance.get_feature_matrix(goal)
         if(laser):
-            localcost_feature = laser.get_feature_matrix()
+            localcost_feature = laser.temp_result
             print("Local cost feature is ", localcost_feature)
             # social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print("social_distance_feature is ", social_distance_feature)
@@ -266,7 +281,7 @@ class Agent():
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
             # print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-            current_feature = np.array([[0.0] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
+            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
 
         else:
             print("No laser right?")
@@ -304,65 +319,101 @@ class Agent():
         return pose
 
     def main(self):
-        if(self.received_goal):
-            path_exec = self.path
-            print("A* path is ", path_exec)
-        else:
-            # print("No Goal received")
+        if(not self.received_goal or not self.goal):
             return None
-        # print(path_exec)
+        if (False):
+        # if (np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd):
+            print ("Sucess achived")
+            return False
+        else:
+            print("Still Working on it ")
+            path_srv = GetPlan()
+            path_srv.start = self.nparray2posestamped(self.robot_pose)
+            path_srv.goal = self.target_goal_pose
+            path_srv.tolerance = 0.1
+            path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
+            path = path_response.plan
 
-        for waypoint in path_exec:
-
-            self.goal = self.posestamped2nparray(waypoint)
             # print("Goes to the next goal")
-
-            while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
+            if len(path.poses) != 0:
+                current_waypoint = path.poses[0]
+                self.goal = path.poses[-1]
+                for waypoint in path.poses:
+                    if waypoint != self.goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
+                        # current_waypoint = waypoint
+                        # self.path.append(waypoint)
+                        continue
+                    elif self.get_waypointdistance(current_waypoint, waypoint) >= LOOKAHEAD_DIST:
+                        self.current_waypoint = waypoint
+                        break
+                        # self.path.append(waypoint)
+                    elif waypoint == self.goal:
+                        self.current_waypoint = self.goal
+                        break
+                    else:
+                        print("Not sure why ")
+                        embed()
+            temp_marker = Marker()
+            temp_marker.header.frame_id = "map"
+            temp_marker.type = 3
+            temp_marker.pose.position.x = self.current_waypoint.pose.position.x
+            temp_marker.pose.position.y = self.current_waypoint.pose.position.y
+            temp_marker.scale.x = 0.2
+            temp_marker.scale.y = 0.2
+            temp_marker.scale.z = 0.1
+            temp_marker.color.a = 1.0
+            temp_marker.color.r = 0.0
+            temp_marker.color.g = 1.0
+            temp_marker.color.b = 0.0
+            self._pub_waypoint.publish(temp_marker)
+            # while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
                 
-                feature = self.get_feature(self.distance, self.goal, self.laser)
+            feature = self.get_feature(self.distance, self.current_waypoint, self.laser)
 
-                print("Feature is", feature)
+            print("Feature is", feature)
 
-                reward, policy = self.get_reward_policy(feature, self.gridsize)
+            reward, policy = self.get_reward_policy(feature, self.gridsize)
 
-                reward_map = OccupancyGrid()
+            reward_map = OccupancyGrid()
 
-                reward_map.header.stamp = rospy.Time.now()
-                reward_map.header.frame_id = "base_link"
-                reward_map.info.resolution = self.resolution
-                reward_map.info.width = self.gridsize[0]
-                reward_map.info.height = self.gridsize[1]
-                reward_map.info.origin.position.x = 0
-                reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-                reward_map.data = [int(cell*100) for cell in normalize(reward)]
+            reward_map.header.stamp = rospy.Time.now()
+            reward_map.header.frame_id = "base_link"
+            reward_map.info.resolution = self.resolution
+            reward_map.info.width = self.gridsize[0]
+            reward_map.info.height = self.gridsize[1]
+            reward_map.info.origin.position.x = 0
+            reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
+            reward_map.data = [int(cell*100) for cell in normalize(reward)]
 
-                self.reward_pub.publish(reward_map)
+            self.reward_pub.publish(reward_map)
 
-                policy = np.reshape(policy, self.gridsize)
+            policy = np.reshape(policy, self.gridsize)
+            print ("The reward and pollicy are:", reward, policy)
+            self.controller.get_irl_path(policy)       
+            self.controller.irl_path.header.frame_id = 'map'
+            self.controller.irl_path.header.stamp = rospy.Time.now()
 
-                self.controller.get_irl_path(policy)       
-                self.controller.irl_path.header.frame_id = 'map'
-                self.controller.irl_path.header.stamp = rospy.Time.now()
+            if(self.controller.error):
+                print("Controller cannot get a valid path!!!")
+                return False
 
-                if(self.controller.error):
-                    print("Controller cannot get a valid path!!!")
-                    break
+            # print("length of controller is ",len(controller.irl_path.poses))
 
-                # print("length of controller is ",len(controller.irl_path.poses))
-
-                self.controller.path_pub.publish(self.controller.irl_path)
-                self.controller.irl_path = Path()
-                rospy.sleep(0.5)
-                # print(self.result)
-                # print("Inside the while loop")
-                # while(self.result == False):
-                #     print(self.result)
-                #     rospy.sleep(0.01)
-                self.result = False
+            self.controller.path_pub.publish(self.controller.irl_path)
+            self.controller.irl_path = Path()
+            rospy.sleep(0.5)
+            # print(self.result)
+            # print("Inside the while loop")
+            # while(self.result == False):
+            #     print(self.result)
+            #     rospy.sleep(0.01)
+            self.result = False
+            return True
                 # print("Inside the while loop")
         # if(self.social_distance.robot_distance != 0):
         #     print("Invade into social distance: ", self.social_distance.invade / self.social_distance.robot_distance)
-        return True
+        
+
 
     def test(self, goal):
 

@@ -43,7 +43,7 @@ class SocialDistance():
 
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame , timeout = rospy.Duration(5))
+            output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame , timeout = rospy.Duration(1))
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):

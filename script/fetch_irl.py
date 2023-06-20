@@ -187,27 +187,35 @@ class IRL_Agent():
         # Get the feature map and trajectory.
         # test_1 contain the trajectory loss
         traj = []
-        for filename in os.listdir("../dataset/trajs/"):
-            # print(filename)
+        for foldername in os.listdir("../dataset/"):
             number_str = "_"
-            for m in filename:
+            for m in foldername:
                 if m.isdigit():
                     number_str = number_str + m
-            with np.load(os.path.join("../dataset/trajs", filename)) as data:
-                file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
-                    print(file_fm_name)
-                    for i in range(len(data.files)):
-                        traj_name = 'arr_{}'.format(i)
-                        cur_traj_len = len(data[traj_name])
-                        if(cur_traj_len > 1):
-                            for j in range(len(data[traj_name]) - 1):
-                                traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
-                            self.trajs.append(traj)
-                            traj = []
-                            fm_name = 'arr_{}'.format(i)
-                            self.fms.append(data2[fm_name])
-
+                folder = "../dataset/demo"+number_str
+            for filename in os.listdir(folder+"/trajs/"):
+                # print(filename)
+                number_str = "_"
+                for m in filename:
+                    if m.isdigit():
+                        number_str = number_str + m
+                with np.load(os.path.join(folder+"/trajs", filename)) as data:
+                    file_fm_name = "fm" + number_str + ".npz"
+                    with np.load(os.path.join(folder+"/fm", file_fm_name)) as data2:
+                        print(file_fm_name)
+                        for i in range(len(data.files)):
+                            traj_name = 'arr_{}'.format(i)
+                            cur_traj_len = len(data[traj_name])
+                            if(cur_traj_len > 1):
+                                for j in range(len(data[traj_name]) - 1):
+                                    traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                                self.trajs.append(traj)
+                                traj = []
+                                temp_fm = []
+                                for j in range(len(data2.files)):
+                                    fm_name = 'arr_{}'.format(j)
+                                    temp_fm.append(data2[fm_name])
+                                self.fms.append(np.array(temp_fm))
         # print(self.percent_change)
         self.N_STATE = self.fms[0][0].shape[0]
         # Assume the grid is square.

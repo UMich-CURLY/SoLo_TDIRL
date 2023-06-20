@@ -80,8 +80,9 @@ class DeepIRLFC:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights5/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights5/'))
+    print("Using your weights tRIBHI !!!!!!")
+    new_saver = tf.train.import_meta_graph('../weights6/saved_weights.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights6/'))
 
   # def save_weights(self):
   #   self.theta.

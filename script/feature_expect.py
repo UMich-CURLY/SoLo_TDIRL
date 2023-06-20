@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/'))
 from pyparsing import empty
 from distance2goal import Distance2goal
-from laser2density import Laser2density
+from laser2density_new import laser2density
 from social_distance import SocialDistance
 from traj_predict import TrajPred
 import rospy
@@ -30,6 +30,10 @@ from IPython import embed
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 from collections import deque
+from nav_msgs.srv import GetPlan
+from visualization_msgs.msg import Marker, MarkerArray
+
+LOOKAHEAD_DIST = 1.5
 def transform_pose(input_pose, from_frame, to_frame):
 
     # **Assuming /tf2 topic is being broadcasted
@@ -43,7 +47,7 @@ def transform_pose(input_pose, from_frame, to_frame):
 
     try:
         # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
-        output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, rospy.Duration(4.0))
+        output_pose_stamped = tf_buffer.transform(pose_stamped, to_frame, rospy.Duration(1.0))
         return output_pose_stamped
 
     except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -58,7 +62,7 @@ class FeatureExpect():
         self.Distance2goal = Distance2goal(gridsize=gridsize, resolution=resolution)
         self.goal = PoseStamped()
         self.received_goal = False
-        self.Laser2density = Laser2density(gridsize=gridsize, resolution=resolution)
+        self.Laser2density = laser2density(gridsize=gridsize, resolution=resolution)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
         self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -92,6 +96,8 @@ class FeatureExpect():
         self.robot_poses = deque()
         self.trajs = deque()
         self.bad_feature = False
+        self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
+        self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
         # self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         # self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
         # self.initpose = PoseWithCovarianceStamped()
@@ -136,6 +142,7 @@ class FeatureExpect():
             self.pose_people_tf = np.append(self.pose_people_tf, np.array([pose_people_tf]), axis=0)
     def goal_callback(self,data):
         self.goal = data
+        self.reached_goal = False
         self.received_goal = True
         # self.robot_poses = deque()
         # self.trajs = deque()
@@ -202,7 +209,7 @@ class FeatureExpect():
         # pose = [-pose[1], pose[0]]
 
         if pose[0] < self.gridsize[1]*self.resolution and pose[0] > -0.5*self.resolution \
-            and pose[1] > -0.5*self.gridsize[0] and pose[1] < 0.5*self.gridsize[0]:
+            and pose[1] > -0.5*self.gridsize[0]*self.resolution and pose[1] < 0.5*self.gridsize[0]*self.resolution:
 
             # pose[1] = max(0,pose[1])
             
@@ -216,30 +223,93 @@ class FeatureExpect():
             return [x, y]
         else:
             return None
-        
+
+    def get_waypointdistance(self, a, b):
+        dx = a.pose.position.x - b.pose.position.x
+        dy = a.pose.position.y - b.pose.position.y
+
+        return np.sqrt(dx**2 + dy**2)
+
+
+    def nparray2posestamped(self, pose_array):
+        pose = PoseStamped()
+        pose.header.frame_id = "map"
+        pose.pose.position.x = pose_array[0]
+        pose.pose.position.y = pose_array[1]
+        return pose
+
     def get_local_goal(self):
         if(not self.received_goal):
+            # self.path = []
             return None 
         else:
-            pass
+            print("Recived goal?  ", self.received_goal)
+            if (not self.reached_goal):
+                # print(data.header.frame_id)
+                path_srv = GetPlan()
+                path_srv.start = self.nparray2posestamped(self.robot_pose)
+                path_srv.goal = self.goal
+                path_srv.tolerance = 0.1
+                path_response = self.get_plan(path_srv.start, path_srv.goal, path_srv.tolerance)
+                path = path_response.plan
+
+                if len(path.poses) != 0:
+                    current_waypoint = path.poses[0]
+                    goal = path.poses[-1]
+                    for waypoint in path.poses:
+                        if waypoint != goal and self.get_waypointdistance(current_waypoint, waypoint) < self.resolution * self.gridsize[1]:
+                            # current_waypoint = waypoint
+                            # self.path.append(waypoint)
+                            continue
+                        elif self.get_waypointdistance(current_waypoint, waypoint) >= LOOKAHEAD_DIST:
+                            self.current_waypoint = waypoint
+                            break
+                            # self.path.append(waypoint)
+                        elif waypoint == goal:
+                            self.current_waypoint = goal
+                            break
+                        else:
+                            print("Not sure why ")
+                            embed()
+                    temp_marker = Marker()
+                    temp_marker.header.frame_id = "map"
+                    temp_marker.type = 3
+                    temp_marker.pose.position.x = self.current_waypoint.pose.position.x
+                    temp_marker.pose.position.y = self.current_waypoint.pose.position.y
+                    temp_marker.scale.x = 0.2
+                    temp_marker.scale.y = 0.2
+                    temp_marker.scale.z = 0.1
+                    temp_marker.color.a = 1.0
+                    temp_marker.color.r = 0.0
+                    temp_marker.color.g = 1.0
+                    temp_marker.color.b = 0.0
+                    self._pub_waypoint.publish(temp_marker)
+                    distance2goal = np.sqrt( (self.robot_pose[0] - self.goal.pose.position.x)**2 + (self.robot_pose[1] -self.goal.pose.position.y)**2 )
+                    if(distance2goal <= 1.5):
+                        print("Reached the goal!!!")
+                        self.reached_goal = True
+                else:
+                    print("path.pose == 0!!!!!")
+                    # self.path = []
 
     def get_current_feature(self):
         # 
-        self.localcost_feature = self.Laser2density.temp_result
-        # print("Local cost feature is ", self.localcost_feature)
-        self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
+        self.localcost_feature = self.Laser2density.get_feature_matrix()
+        print("Local cost feature is ", self.localcost_feature)
+        # self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # feature_list = [self.social_distance_feature]
         # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
         self.distance_feature = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
         # print("Current feature is ", self.current_feature)
         if (self.received_goal):
-            self.distance_feature = self.Distance2goal.get_feature_matrix(self.goal)
+            self.get_local_goal()
+            self.distance_feature = self.Distance2goal.get_feature_matrix(self.current_waypoint)
             if (not self.distance_feature):
                 self.bad_feature = True
                 return
             else:
                 self.bad_feature = False
-            if (np.linalg.norm(self.distance_feature-np.zeros(len(self.distance_feature)))<0.1):
+            if (np.linalg.norm(self.distance_feature-np.zeros(len(self.distance_feature)))<0.5):
                 self.recived_goal = False
                 print(self.distance_feature)
                 print("Finished this goal, need new one")
@@ -254,11 +324,13 @@ class FeatureExpect():
         reward_map.info.height = self.gridsize[1]
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-        reward_map.data = [int(cell) for cell in self.current_feature]
+        print ("Current feature is ", self.current_feature)
+        reward_map.data = [int(cell) for cell in self.current_feature[1]]
         self.reward_pub.publish(reward_map)
         single_feature = np.array(self.current_feature).T
+        print ("Single feature is", single_feature)
         if (self.received_goal):
-            fm_file = "../dataset/fm/fm_"+str(self.counter)+".npz"
+            fm_file = "../dataset/demo_2/fm/fm_"+str(self.counter)+".npz"
             np.savez(fm_file, *single_feature)
             self.counter +=1
 
@@ -300,7 +372,7 @@ class FeatureExpect():
                 remove_indices.append(i)
                 traj_counter = int(i+(self.counter - len(self.robot_poses)))
                 
-                traj_files.append(["../dataset/trajs/trajs_"+str(traj_counter)+".npz"])
+                traj_files.append(["../dataset/demo_2/trajs/trajs_"+str(traj_counter)+".npz"])
                 print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
                 if (distance <0.1):
                     print("Finished a goal! ")
@@ -368,8 +440,8 @@ if __name__ == "__main__":
         # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         feature = FeatureExpect(resolution=0.5, gridsize=(3,3))
 
-        fm_file = "../dataset/fm/fm.npz"
-        traj_file = "../dataset/trajs/trajs.npz"
+        fm_file = "../dataset/demo_2/fm/fm.npz"
+        traj_file = "../dataset/demo_2/trajs/trajs.npz"
         # while(not feature.initpose_get):
         #     rospy.sleep(0.1)
         # feature.reset_robot()
@@ -381,4 +453,4 @@ if __name__ == "__main__":
         print("Rospy shutdown", rospy.is_shutdown())
         while(not rospy.is_shutdown()):
             feature.get_expect()
-            rospy.sleep(0.5)
+            rospy.sleep(0.1)

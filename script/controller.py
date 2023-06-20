@@ -35,7 +35,7 @@ class PathPublisher():
         '''
         self.policy = policy
         self.error = False
-        direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
+        direct = {'r':np.array([0, -1]), 'l':np.array([0, 1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
         
         current_pose = np.array([2,1])
 

@@ -80,7 +80,6 @@ class laser2density():
                 temp_marker.color.g = 1.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
-        print(self.result_grid)
         self._pub_markers.publish(markers)
 
     def convert_local_map_to_position(self, index):
@@ -117,7 +116,6 @@ class laser2density():
                 temp_marker.color.g = 1.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
-        print(self.result_grid)
         self._pub_markers.publish(markers)
 
     def inside_grid(self, x, y):
@@ -128,8 +126,8 @@ class laser2density():
 
     def get_feature_matrix(self):
         print ("Inside function ", self.got_data)
-        # if (not self.got_data):
-        #     return self.temp_result
+        if (not self.got_data):
+            return self.temp_result
         for i in range(self.gridsize[0]):
             for j in range(self.gridsize[1]):
                 index = self.gridsize[0]*i + j % self.gridsize[1]
@@ -139,7 +137,6 @@ class laser2density():
                     self.temp_result[index] = [1,0,0]
                 else:
                     self.temp_result[index] = [0,1,0]
-        print("Temp result is", self.temp_result)
         return self.temp_result
 
     def in_which_cell(self, pose):

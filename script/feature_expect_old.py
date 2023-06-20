@@ -76,7 +76,7 @@ class FeatureExpect():
         self.initpose_get = True
 
     def get_robot_pose(self):
-        self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(4.0))
+        self.tf_listener.waitForTransform("/map", "/base_link", rospy.Time(), rospy.Duration(1.0))
         (trans,rot) = self.tf_listener.lookupTransform('/map', '/base_link', rospy.Time(0))
         self.robot_pose = [trans[0], trans[1]]
         if(len(self.previous_robot_pose) == 0):
