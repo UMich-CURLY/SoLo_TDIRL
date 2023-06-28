@@ -50,11 +50,14 @@ class Distance2goal():
                 distance = sqrt(pow(grid_center_x - goal_in_base.pose.position.x, 2) + pow(grid_center_y - goal_in_base.pose.position.y, 2))
                 # distance = exp(abs(distance))
                 result[y * self.gridsize[1] + x] = distance
+        
+        #### Normalizing the goal distance #####
+        # max_distance = max(result)
+        # min_distance = min(result)
+        # result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
 
-        max_distance = max(result)
-        min_distance = min(result)
-        result = [[(result[i]-min_distance) / (max_distance - min_distance)] for i in range(len(result))]
-        # result = [[result[i]] for i in range(len(result))]
+        ##########################################
+        result = [[result[i]] for i in range(len(result))]
 
         # ave_dis = sum(result)/(self.gridsize[0]*self.gridsize[1])
 

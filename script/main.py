@@ -26,8 +26,11 @@ from rospy_tutorials.msg import Floats
 import tf2_ros, tf2_geometry_msgs
 from IPython import embed
 import tf
+import img_utils
 from visualization_msgs.msg import Marker, MarkerArray
-
+import tensorflow 
+from StringIO import StringIO
+import matplotlib.pyplot as plt
 # 
 
 LOOKAHEAD_DIST = 1.5
@@ -37,7 +40,7 @@ class Agent():
         
         rospy.init_node("main")
 
-        self.NUM_FEATURE = 6
+        self.NUM_FEATURE = 2
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         # self.robot_pose = np.array([0, 0])
@@ -85,19 +88,27 @@ class Agent():
 
         self.success = 0
         self.fail = 0
-
+        self.counter = 0
         # self.goal_stamped = PoseStamped()
         # self.goal_stamped.pose.position.x = self.goal[0]
         # self.goal_stamped.pose.position.y = self.goal[1]
         # self.goal_stamped.pose.position.z = 0
         # self.goal_stamped.header.frame_id = "/map"
 
-        self.nn_r = DeepIRLFC(self.NUM_FEATURE, 0.01, 3, 3)
+        self.nn_r = DeepIRLFC(self.NUM_FEATURE, 0.01, 30, 30)
 
         # print("before load weight")
 
         self.nn_r.load_weights()
         self.received_goal = False
+        self.sess = tensorflow.Session()
+        self.writer = tensorflow.summary.FileWriter("../logs")
+        self.step = tensorflow.Variable(0, dtype=tensorflow.int64)
+        self.step_update = self.step.assign_add(1)
+        self.writer_flush = self.writer.flush()
+        self.sess.run ([self.step.initializer])
+        init = tensorflow.initialize_all_variables()
+        self.sess.run(init)
         # self.traj_pred.session
         print("Init Done!!!!")
 
@@ -272,7 +283,7 @@ class Agent():
         # while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
         #     distance_feature = distance.get_feature_matrix(goal)
         if(laser):
-            localcost_feature = laser.temp_result
+            localcost_feature = laser.get_feature_matrix()
             print("Local cost feature is ", localcost_feature)
             # social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print("social_distance_feature is ", social_distance_feature)
@@ -299,7 +310,9 @@ class Agent():
         rmap_gt = np.ones([gridsize[0], gridsize[1]])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - act_rand)
         P_a = gw.get_transition_mat()
-        reward, policy = get_irl_reward_policy(self.nn_r, feat_map.T, P_a,gamma)
+        feat_map_new = np.array(feat_map[:,0:2])
+        print(feat_map_new.shape)
+        reward, policy = get_irl_reward_policy(self.nn_r, feat_map_new.T, P_a,gamma)
 
         return reward, policy
 
@@ -388,7 +401,28 @@ class Agent():
             self.reward_pub.publish(reward_map)
 
             policy = np.reshape(policy, self.gridsize)
+
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+            plt.subplot(2, 2, 1)
+            ax1 = img_utils.heatmap2d(np.reshape(feature[:,0], (self.gridsize[0],self.gridsize[1])), 'Distance Feature', block=False)
+            plt.subplot(2, 2, 2)
+            ax2 = img_utils.heatmap2d(np.reshape(feature[:,1], (self.gridsize[0],self.gridsize[1])), 'Obstacle Feature', block=False)
+            plt.subplot(2, 2, 3)
+            ax3 = img_utils.heatmap2d(np.reshape(reward, (self.gridsize[0],self.gridsize[1])), 'Reward', block=False)
+            plt.subplot(2, 2, 4)
+            # ax3 = img_utils.heatmap2d(np.reshape(policy, (self.gridsize[0],self.gridsize[1])), 'Policy', block=False)
+            s = StringIO()
+            
+            plt.savefig(s, format='png')
+            img_sum = tensorflow.Summary.Image(encoded_image_string=s.getvalue())
+            im_summaries = []
+            im_summaries.append(tensorflow.Summary.Value(tag='%s/%d' % ("main", self.counter), image=img_sum))
+            summary = tensorflow.Summary(value=im_summaries)
+            self.writer.add_summary(summary, self.counter)
+            self.sess.run(self.step_update)
+            # self.sess.run(self.writer_flush)
             print ("The reward and pollicy are:", reward, policy)
+            self.counter +=1
             self.controller.get_irl_path(policy)       
             self.controller.irl_path.header.frame_id = 'map'
             self.controller.irl_path.header.stamp = rospy.Time.now()
@@ -401,7 +435,7 @@ class Agent():
 
             self.controller.path_pub.publish(self.controller.irl_path)
             self.controller.irl_path = Path()
-            rospy.sleep(0.5)
+            rospy.sleep(0.1)
             # print(self.result)
             # print("Inside the while loop")
             # while(self.result == False):
@@ -475,7 +509,25 @@ class Agent():
         return self.result
 
 
+    def log_images(self, tag, images, step):
+        """Logs a list of images."""
+        im_summaries = []
+        for nr, img in enumerate(images):
+            # Write the image to a string
+            s = StringIO()
+            plt.imsave(s, img, format='png')
 
+            # Create an Image object
+            img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
+                                        height=img.shape[0],
+                                        width=img.shape[1])
+            # Create a Summary value
+            im_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, nr),
+                                                    image=img_sum))
+
+        # Create and write Summary
+        summary = tf.Summary(value=im_summaries)
+        self.writer.add_summary(summary, step)
 
 if __name__ == "__main__":
     goal1 = np.array([0,4])
@@ -524,3 +576,4 @@ if __name__ == "__main__":
     # for i in range(10):
     #     agent.multiplegoal_planner(goallist)
     # rospy.spin()
+    agent.writer.flush()

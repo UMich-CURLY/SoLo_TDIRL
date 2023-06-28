@@ -98,6 +98,7 @@ class FeatureExpect():
         self.bad_feature = False
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
+        self.demo_num = "demo_4"
         # self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         # self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
         # self.initpose = PoseWithCovarianceStamped()
@@ -330,7 +331,7 @@ class FeatureExpect():
         single_feature = np.array(self.current_feature).T
         print ("Single feature is", single_feature)
         if (self.received_goal):
-            fm_file = "../dataset/demo_2/fm/fm_"+str(self.counter)+".npz"
+            fm_file = "../dataset/"+self.demo_num+"/fm/fm_"+str(self.counter)+".npz"
             np.savez(fm_file, *single_feature)
             self.counter +=1
 
@@ -372,7 +373,7 @@ class FeatureExpect():
                 remove_indices.append(i)
                 traj_counter = int(i+(self.counter - len(self.robot_poses)))
                 
-                traj_files.append(["../dataset/demo_2/trajs/trajs_"+str(traj_counter)+".npz"])
+                traj_files.append(["../dataset/"+self.demo_num+"/trajs/trajs_"+str(traj_counter)+".npz"])
                 print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
                 if (distance <0.1):
                     print("Finished a goal! ")
@@ -440,8 +441,10 @@ if __name__ == "__main__":
         # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         feature = FeatureExpect(resolution=0.5, gridsize=(3,3))
 
-        fm_file = "../dataset/demo_2/fm/fm.npz"
-        traj_file = "../dataset/demo_2/trajs/trajs.npz"
+        fm_file = "../dataset/demo_4/fm/fm.npz"
+        traj_file = "../dataset/demo_4/trajs/trajs.npz"
+
+        feature.demo_num = "demo_12"
         # while(not feature.initpose_get):
         #     rospy.sleep(0.1)
         # feature.reset_robot()

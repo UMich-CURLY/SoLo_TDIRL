@@ -35,8 +35,8 @@ class IRL_Agent():
         self.percent_change = []
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
-        self.LEARNING_RATE = 0.001
-        self.N_ITERS = 10
+        self.LEARNING_RATE = 0.01
+        self.N_ITERS = 1
         self.good_percent = 0.50
     
     def calculate_good_percent(self):
@@ -189,16 +189,25 @@ class IRL_Agent():
         traj = []
         for foldername in os.listdir("../dataset/"):
             number_str = "_"
+            valid = False
             for m in foldername:
                 if m.isdigit():
+                    valid = True
                     number_str = number_str + m
-                folder = "../dataset/demo"+number_str
+                else:
+                    valid = False
+            if (not valid):
+                continue
+            if (int(m) < 5):
+                continue
+            folder = "../dataset/demo"+number_str
             for filename in os.listdir(folder+"/trajs/"):
                 # print(filename)
                 number_str = "_"
                 for m in filename:
                     if m.isdigit():
                         number_str = number_str + m
+                
                 with np.load(os.path.join(folder+"/trajs", filename)) as data:
                     file_fm_name = "fm" + number_str + ".npz"
                     with np.load(os.path.join(folder+"/fm", file_fm_name)) as data2:
@@ -209,13 +218,16 @@ class IRL_Agent():
                             if(cur_traj_len > 1):
                                 for j in range(len(data[traj_name]) - 1):
                                     traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
-                                self.trajs.append(traj)
-                                traj = []
-                                temp_fm = []
-                                for j in range(len(data2.files)):
-                                    fm_name = 'arr_{}'.format(j)
-                                    temp_fm.append(data2[fm_name])
-                                self.fms.append(np.array(temp_fm))
+                            else:
+                                # traj.append(Step(cur_state=int(data[traj_name][0]), next_state=int(data[traj_name][0])))
+                                continue
+                            self.trajs.append(traj)
+                            traj = []
+                            temp_fm = []
+                            for j in range(len(data2.files)):
+                                fm_name = 'arr_{}'.format(j)
+                                temp_fm.append(data2[fm_name])
+                            self.fms.append(np.array(temp_fm[0:2]))
         # print(self.percent_change)
         self.N_STATE = self.fms[0][0].shape[0]
         # Assume the grid is square.
@@ -227,15 +239,15 @@ class IRL_Agent():
         # test_1 contain the trajectory loss
         traj = []
         trajs_set = []
-        for filename in os.listdir("../dataset/trajs/"):
+        for filename in os.listdir("../dataset/dataset/trajs/"):
             # print(filename)
             number_str = ""
             for m in filename:
                 if m.isdigit():
                     number_str = number_str + m
-            with np.load(os.path.join("../dataset/trajs", filename)) as data:
+            with np.load(os.path.join("../dataset/dataset/trajs", filename)) as data:
                 file_fm_name = "fm" + number_str + ".npz"
-                with np.load(os.path.join("../dataset/fm", file_fm_name)) as data2:
+                with np.load(os.path.join("../dataset/dataset/fm", file_fm_name)) as data2:
                     for i in range(len(data.files)):
                         traj_name = 'arr_{}'.format(i)
                         cur_traj_len = len(data[traj_name])
@@ -271,7 +283,11 @@ class IRL_Agent():
         img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
         plt.show()
 
-
+    def flip_distance_feature(self):
+        for i in range(len(self.fms)):
+            self.fms[i][0] = np.ones(self.fms[i][0].shape) - self.fms[i][0]
+        return True 
+    
     def train_without_trajloss(self):
         # feed the feature maps and traj into network and train.
         self.read_csv_train_no_loss()
@@ -279,9 +295,20 @@ class IRL_Agent():
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
-        rewards = deep_maxent_irl_no_traj_loss(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
-        img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward Map - Deep Maxent', block=False)
+        rewards, nn_r = deep_maxent_irl_no_traj_loss_tribhi(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        print ("The reward is ", rewards)
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+        plt.subplot(2, 2, 1)
+        ax1 = img_utils.heatmap2d(np.reshape(self.fms[3][0], (self.H,self.W)), 'Distance Feature', block=False)
+        plt.subplot(2, 2, 2)
+        if (self.fms[3].shape[1] == 2):
+            ax2 = img_utils.heatmap2d(np.reshape(self.fms[3][1], (self.H,self.W)), 'obs Feature', block=False)
+        plt.subplot(2, 2, 3)
+        rewards, policy = get_irl_reward_policy(nn_r,self.fms[3], P_a)
+        ax3 = img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward', block=False)
+        # plt.subplot(2, 2, 4)
         plt.show()
+        
 
     def train_multi_trajs(self):
         # feed the feature maps and traj into network and train.

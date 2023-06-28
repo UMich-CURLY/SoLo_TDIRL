@@ -17,7 +17,7 @@ class PathPublisher():
         self.tf_listener = tf.TransformListener()
 
         self.irl_path = Path()
-        self.irl_path.header.frame_id = 'map'
+        self.irl_path.header.frame_id = 'my_map_frame'
         self.irl_path.header.stamp = rospy.Time.now()
 
         self.path_pub = rospy.Publisher("/path", Path, queue_size=100)
@@ -35,7 +35,7 @@ class PathPublisher():
         '''
         self.policy = policy
         self.error = False
-        direct = {'r':np.array([0, -1]), 'l':np.array([0, 1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
+        direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
         
         current_pose = np.array([2,1])
 
@@ -95,7 +95,7 @@ class PathPublisher():
         goal_in_base.pose.position.z = 0
         # goal_in_base.pose.orientation.w = 1
 
-        goal_in_base.header.frame_id = "/base_link"
+        goal_in_base.header.frame_id = "/base_frame"
 
 
         # self.tf_listener.waitForTransform("map", "base_link", rospy.Time(0), rospy.Duration(4.0))
@@ -103,8 +103,8 @@ class PathPublisher():
 
 
         try:
-            self.tf_listener.waitForTransform("map", "base_link", rospy.Time(0), rospy.Duration(4.0))
-            goal_in_map = self.tf_listener.transformPose("map", goal_in_base)
+            self.tf_listener.waitForTransform("my_map_frame", "base_frame", rospy.Time(0), rospy.Duration(4.0))
+            goal_in_map = self.tf_listener.transformPose("my_map_frame", goal_in_base)
         except:
             print("Do not get transform!!!!!!!!!")
             return 0
@@ -116,17 +116,17 @@ if __name__ == "__main__":
     rospy.init_node("publish_irl_path")
 
     policy = [['r', 'r', 'r'],
-            ['r', 'r', 'u'],
+            ['u', 'l', 'u'],
             ['u', 'u', 'u']]
 
-    controller = PathPublisher(policy=policy, resolution=0.5)
+    controller = PathPublisher(resolution=0.5, gridsize=[3,3])
 
     # controller.irl_path.header.frame_id = '/map'
-    controller.get_irl_path()       
-    controller.irl_path.header.frame_id = 'map'
+    controller.get_irl_path(policy)       
+    controller.irl_path.header.frame_id = 'my_map_frame'
     controller.irl_path.header.stamp = rospy.Time.now()
 
-    # while(not rospy.is_shutdown()):
-
-    controller.path_pub.publish(controller.irl_path)
-        # rospy.sleep(0.1)
+    while(not rospy.is_shutdown()):
+        
+        controller.path_pub.publish(controller.irl_path)
+        rospy.sleep(0.1)

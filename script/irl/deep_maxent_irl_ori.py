@@ -10,6 +10,8 @@ import tensorflow as tf
 from utils import *
 import matplotlib.pyplot as plt
 import time
+from IPython import embed
+from StringIO import StringIO
 
 class DeepIRLFC:
   def __init__(self, n_input, lr, n_h1=400, n_h2=300, l2=10, name='deep_irl_fc'):
@@ -145,13 +147,13 @@ class DeepIRLConv:
       max_pool2 = tf.layers.max_pooling2d(inputs=conv6,pool_size=2,strides=2,name="Pool2")
 
       # Block3
-      unpooling1 = tf.keras.layers.Conv2DTranspose(filters=hidden_size2,kernel_size=(3,3),strides=2,padding="valid")(max_pool2)
+      unpooling1 = tf.contrib.layers.conv2d_transpose(max_pool2,num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
       conv7 = self.conv_layer(unpooling1, hidden_size2, hidden_size2, name="Conv7")
       conv8 = self.conv_layer(conv7, hidden_size2, hidden_size2, name="Conv8")
       conv9 = self.conv_layer(conv8, hidden_size2, hidden_size2, name="Conv9")
 
       # Block4
-      unpooling2 = tf.keras.layers.Conv2DTranspose(filters=hidden_size2,kernel_size=(3,3),strides=2,padding="valid")(conv9)
+      unpooling2 = tf.contrib.layers.conv2d_transpose(conv9, num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
       conv10 = self.conv_layer(unpooling2, hidden_size1, hidden_size1, name="Conv10")
       conv11 = self.conv_layer(conv10, hidden_size1, hidden_size1, name="Conv11")
       conv12 = self.conv_layer(conv11, hidden_size1, hidden_size1, name="Conv12")
@@ -294,6 +296,7 @@ def deep_maxent_irl_mul_traj(feat_maps, P_a, gamma, trajs, lr, n_iters):
       grad_theta, l2_loss, grad_norm = nn_r.apply_grads(feat_maps[i], grad_r)
       print("Loss is ",l2_loss)
     weight = nn_r.get_theta()
+    print("weights are", weight)
   return normalize(rewards)
 
 def get_reward_sum_from_policy(reward, policy, gridsize):
@@ -505,7 +508,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
 
   # init nn model
   print("Number of feature: ", feat_maps[0].shape[0])
-  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 3, 3)
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 30, 30)
 
   # Hight and width of the feature map. (Assume the grid is a square)
   hight = int(np.sqrt(feat_maps[0].shape[1]))
@@ -602,6 +605,180 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
 
 
   return rewards
+
+def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_iters):
+  """
+  Maximum Entropy Inverse Reinforcement Learning (Maxent IRL) 
+  
+  Add trajectory ranking loss batchsize=2
+
+  inputs:
+    feat_map    NxD matrix - the features for each state
+    P_a         NxNxN_ACTIONS matrix - P_a[s0, s1, a] is the transition prob of 
+                                       landing at state s1 when taking action 
+                                       a at state s0
+    gamma       float - RL discount factor
+    trajs       a list of demonstrations
+    lr          float - learning rate
+    n_iters     int - number of optimization steps
+
+  returns
+    rewards     Nx1 vector - recoverred state rewards
+  """
+
+
+  '''
+  trajs = [[Step(cur_state=7.0, next_state=4.0), Step(cur_state=4.0, next_state=1.0)], 
+            [Step(cur_state=7.0, next_state=4.0), Step(cur_state=4.0, next_state=5.0)]]
+  fms = [array([[0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [1, 1, 0, 1, 1, 0, 0, 1, 1],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0],
+      [1, 1, 1, 1, 1, 1, 0, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 1, 0, 0]]), 
+      
+      array([[0, 0, 1, 0, 0, 1, 0, 0, 0],
+      [1, 1, 0, 0, 1, 0, 0, 1, 1],
+      [0, 0, 0, 1, 0, 0, 1, 0, 0],
+      [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 0, 0, 0, 0, 0]])]
+'''
+  # tf.set_random_seed(1)
+  # Just for testing
+  # feat_maps = feat_maps[:2]
+  # trajs = trajs[:2]
+  # feat_maps[:] = feat_maps[:][:2]
+  # feat_maps[:][0] = [-e for e in feat_maps[:][0]]
+  # print(np.array(feat_maps[1]).T)
+
+
+  N_STATES, _, N_ACTIONS = np.shape(P_a)
+  # print(N_STATES, N_ACTIONS)
+
+  # init nn model
+  print("Number of feature: ", feat_maps[0].shape[0])
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 30, 30)
+  # nn_r = DeepIRLConv(feat_maps[0].shape[1], feat_maps[0].shape[1], lr, 3, 3)
+  # Hight and width of the feature map. (Assume the grid is a square)
+  hight = int(np.sqrt(feat_maps[0].shape[1]))
+  width = hight
+
+  # find state visitation frequencies using demonstrations
+  
+  # training 
+  # print(trajs)
+
+  train_summary_writer = tf.summary.FileWriter("../logs1")
+
+  train_summary_writer.flush()
+  
+  prev_l2_loss = 1000
+  l2_loss = 0
+  # while (True):
+  for j in range(len(feat_maps)):
+    traj1 = [trajs[j]]
+    mu_D1 = demo_svf(traj1, N_STATES)
+
+    for i in range(n_iters):
+        
+
+
+    # while(l2_loss>1):
+      # if iteration % (n_iters/10) == 0:
+      #   print 'iteration: {}'.format(iteration)
+      
+      # compute the reward matrix
+      
+      rewards1 = nn_r.get_rewards(feat_maps[j].T)
+      # print(rewards)
+      # compute policy 
+      _, policy1 = value_iteration.value_iteration(P_a, rewards1, gamma, error=0.01, deterministic=True)
+      
+      # compute expected svf
+      mu_exp1 = compute_state_visition_freq(P_a, gamma, traj1, policy1, deterministic=True)
+      
+      # compute gradients on rewards:
+      grad_r1 = mu_D1 - mu_exp1
+      # compute the trajectory ranking loss
+      # r1 = get_reward_sum_from_policy(rewards1, policy1, [width, hight])
+      # r2 = get_reward_sum_from_policy(rewards2, policy2, [width, hight])
+      # r1 = percent_change[num1]
+      # r2 = percent_change[num2]
+      # traj_loss = -np.log(np.exp(max(r1,r2)) / (np.exp(r1) + np.exp(r2)))
+      # traj_loss = (r1 < r2)
+
+
+      # apply gradients to the neural network
+      grad_theta, l2_loss, grad_norm = nn_r.apply_grads(feat_maps[j].T, grad_r1)
+
+      loss_summary = tf.Summary(value=[tf.Summary.Value(tag="loss",
+                                                     simple_value=l2_loss)])
+      # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+      train_summary_writer.add_summary(loss_summary, global_step=i + j*n_iters)
+      # grad_summary = tf.Summary(value=[tf.Summary.Value(tag="grad_theta",
+                                                    #  simple_value=grad_theta)])
+      # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
+      # train_summary_writer.add_summary(grad_summary, global_step=i + j*n_iters)
+      print("loss for feature %i is %d", i + j*n_iters ,l2_loss)
+    # if (abs(prev_l2_loss - l2_loss) > 0.0001):
+    #   prev_l2_loss = l2_loss
+    # else:
+    #   break
+      # with train_summary_writer.as_default():
+      #   tf.summary.scalar('loss', l2_loss, step=i*n_iters + iteration)
+      #   tf.summary.scalar('grad_theta', grad_theta, step=i*n_iters + iteration)
+    
+      # print("Training %d  done" % i)
+  
+  # print(trajs)
+
+
+  rewards =nn_r.get_rewards(feat_maps[9].T)
+
+  _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
+  for j in range(len(feat_maps)):
+    traj = trajs[j]
+    rewards, policy = get_irl_reward_policy(nn_r,feat_maps[j], P_a)
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+    plt.subplot(2, 2, 1)
+    ax1 = img_utils.heatmap2d(np.reshape(feat_maps[j][0], (hight, width)), 'Distance Feature', block=False)
+    plt.subplot(2, 2, 2)
+    if (feat_maps[j].shape[0] > 1):
+      ax2 = img_utils.heatmap2d(np.reshape(feat_maps[j][1], (hight, width)), 'Obstacle Feature', block=False)
+    plt.subplot(2, 2, 3)
+    ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
+    
+    s = StringIO()
+
+    traj_viz = np.zeros(9)
+    maxval = 1.0
+    i = 0
+    for index in traj:
+      traj_viz[index.cur_state] = maxval - i*0.1
+      i+=1
+    traj_viz[index.next_state] = maxval - i*0.1
+
+    plt.subplot(2, 2, 4)
+    ax4 = img_utils.heatmap2d(np.reshape(traj_viz, (hight, width)), 'Observed Traj', block=False)
+    plt.savefig(s, format='png')
+    plt.close('all')
+    img_sum = tf.Summary.Image(encoded_image_string=s.getvalue())
+    s.close()
+    im_summaries = []
+    im_summaries.append(tf.Summary.Value(tag='%s/%d' % ("train", j), image=img_sum))
+    summary = tf.Summary(value=im_summaries)
+    train_summary_writer.add_summary(summary, j)
+  # print(policy)
+  # print(rewards)
+  # return sigmoid(normalize(rewards))
+  
+
+  # print(np.array(rewards).reshape(3,3))
+
+  weight = nn_r.get_theta_no_loss()
+
+  return rewards, nn_r
 
 def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters):
   """
