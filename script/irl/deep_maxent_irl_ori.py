@@ -39,6 +39,8 @@ class DeepIRLFC:
     self.optimize = self.optimizer.apply_gradients(zip(self.grad_theta, self.theta))
     self.sess.run(tf.global_variables_initializer())
     self.saver = tf.train.Saver()
+    self.weight_path = ""
+    self.weight_folder = ""
 
 
   def _build_network(self, name):
@@ -61,7 +63,7 @@ class DeepIRLFC:
 
   def get_theta_no_loss(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights6/saved_weights")
+    self.saver.save(self.sess, self.weight_path)
     return theta
 
 
@@ -79,8 +81,8 @@ class DeepIRLFC:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights5/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights5/'))
+    new_saver = tf.train.import_meta_graph(self.weight_path+'.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint(self.weight_folder))
 
   # def save_weights(self):
   #   self.theta.
@@ -102,7 +104,6 @@ class DeepIRLConv:
     self.grad_r = tf.placeholder(tf.float32, [None, self.feature_map_size, self.feature_map_size, 1])
     self.l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in self.theta])
     self.grad_l2 = tf.gradients(self.l2_loss, self.theta)
-
     self.grad_theta = tf.gradients(self.reward, self.theta, -self.grad_r)
     # apply l2 loss gradients
     self.grad_theta = [tf.add(l2*self.grad_l2[i], self.grad_theta[i]) for i in range(len(self.grad_l2))]
@@ -112,6 +113,9 @@ class DeepIRLConv:
     self.optimize = self.optimizer.apply_gradients(zip(self.grad_theta, self.theta))
     self.sess.run(tf.global_variables_initializer())
     self.saver = tf.train.Saver()
+    self.weight_path = ""
+    self.weight_folder = ""
+
 
   def conv_layer(self, x, input_channel, hidden_size, name="Conv"):
     with tf.variable_scope(name):
@@ -139,28 +143,29 @@ class DeepIRLConv:
       conv2 = self.conv_layer(conv1, hidden_size1, hidden_size1, name="Conv2")
       conv3 = self.conv_layer(conv2, hidden_size1, hidden_size1, name="Conv3")
       max_pool1 = tf.layers.max_pooling2d(inputs=conv3,pool_size=2,strides=2,name="Pool1")
-
+      print(max_pool1)
       # Block2
       conv4 = self.conv_layer(max_pool1, hidden_size1, hidden_size2, name="Conv4")
       conv5 = self.conv_layer(conv4, hidden_size2, hidden_size2, name="Conv5")
       conv6 = self.conv_layer(conv5, hidden_size2, hidden_size2, name="Conv6")
       max_pool2 = tf.layers.max_pooling2d(inputs=conv6,pool_size=2,strides=2,name="Pool2")
-
+      print(max_pool2)
       # Block3
       unpooling1 = tf.contrib.layers.conv2d_transpose(max_pool2,num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
       conv7 = self.conv_layer(unpooling1, hidden_size2, hidden_size2, name="Conv7")
       conv8 = self.conv_layer(conv7, hidden_size2, hidden_size2, name="Conv8")
       conv9 = self.conv_layer(conv8, hidden_size2, hidden_size2, name="Conv9")
-
+      print(conv9)
       # Block4
       unpooling2 = tf.contrib.layers.conv2d_transpose(conv9, num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
       conv10 = self.conv_layer(unpooling2, hidden_size1, hidden_size1, name="Conv10")
       conv11 = self.conv_layer(conv10, hidden_size1, hidden_size1, name="Conv11")
       conv12 = self.conv_layer(conv11, hidden_size1, hidden_size1, name="Conv12")
-      # print(conv12)
+      print(conv12)
 
       # Output
       reward = self.conv_layer(conv12, 1, 1, name="Output")
+      print(reward)
     theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
     return input_s, reward, theta
@@ -173,7 +178,7 @@ class DeepIRLConv:
 
   def get_theta_no_loss(self):
     theta = self.sess.run(self.theta)
-    self.saver.save(self.sess, "../weights6/saved_weights")
+    self.saver.save(self.sess, self.weight_path)
     return theta
 
 
@@ -191,8 +196,9 @@ class DeepIRLConv:
 
   def load_weights(self):
     # with tf.Session() as sess:
-    new_saver = tf.train.import_meta_graph('../weights2/saved_weights.meta')
-    new_saver.restore(self.sess, tf.train.latest_checkpoint('../weights2/'))
+    new_saver = tf.train.import_meta_graph(self.weight_path+'.meta')
+    new_saver.restore(self.sess, tf.train.latest_checkpoint(self.weight_folder))
+  
 
 def compute_state_visition_freq(P_a, gamma, trajs, policy, deterministic=True):
   """compute the expected states visition frequency p(s| theta, T) 
@@ -606,7 +612,7 @@ def deep_maxent_irl_no_traj_loss(feat_maps, P_a, gamma, trajs,  lr, n_iters):
 
   return rewards
 
-def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_iters):
+def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_iters, weight_path = None):
   """
   Maximum Entropy Inverse Reinforcement Learning (Maxent IRL) 
   
@@ -658,8 +664,10 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
 
   # init nn model
   print("Number of feature: ", feat_maps[0].shape[0])
-  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 30, 30)
-  # nn_r = DeepIRLConv(feat_maps[0].shape[1], feat_maps[0].shape[1], lr, 3, 3)
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 50, 50)
+  # nn_r = DeepIRLConv(2, 3, lr, 3, 3)
+  if(weight_path):
+    nn_r.weight_path = weight_path
   # Hight and width of the feature map. (Assume the grid is a square)
   hight = int(np.sqrt(feat_maps[0].shape[1]))
   width = hight
@@ -669,7 +677,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
   # training 
   # print(trajs)
 
-  train_summary_writer = tf.summary.FileWriter("../logs1")
+  train_summary_writer = tf.summary.FileWriter(weight_path+"/logs1")
 
   train_summary_writer.flush()
   
@@ -735,6 +743,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
 
 
   rewards =nn_r.get_rewards(feat_maps[9].T)
+  weight = nn_r.get_theta_no_loss()
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   for j in range(len(feat_maps)):
@@ -751,7 +760,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
     
     s = StringIO()
 
-    traj_viz = np.zeros(9)
+    traj_viz = np.zeros(hight*width)
     maxval = 1.0
     i = 0
     for index in traj:
@@ -776,7 +785,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
 
   # print(np.array(rewards).reshape(3,3))
 
-  weight = nn_r.get_theta_no_loss()
+  
 
   return rewards, nn_r
 

@@ -11,7 +11,7 @@ from laser2density_new import laser2density
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
-from deep_maxent_irl import *
+from deep_maxent_irl_ori import *
 from utils import *
 from controller import PathPublisher
 import rospy
@@ -31,15 +31,18 @@ from visualization_msgs.msg import Marker, MarkerArray
 import tensorflow 
 from StringIO import StringIO
 import matplotlib.pyplot as plt
+import utils 
+import yaml
 # 
 
-LOOKAHEAD_DIST = 1.5
-
+VISUALIZE_TENSORBOARD = False
 class Agent():
-    def __init__(self, gridsize,resolution):
+    def __init__(self, config):
         
         rospy.init_node("main")
-
+        gridsize = np.array(config["grid_size"])
+        resolution = config["resolution"]
+        self.lookahead_dist = config["lookahead_dist"]
         self.NUM_FEATURE = 2
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
@@ -65,14 +68,14 @@ class Agent():
 
         self.laser = laser2density(gridsize=gridsize, resolution=resolution)
 
-        self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
+        # self.social_distance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
         self.controller = PathPublisher(resolution, gridsize)
  
         # self.traj_pred = TrajPred(gridsize=gridsize, resolution=resolution)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
 
-        self.reward_pub = rospy.Publisher("reward_map", OccupancyGrid, queue_size=1000)
+        self.reward_pub = rospy.Publisher("reward_map", OccupancyGrid, queue_size=0)
 
         self.traj_feature = [[0.0] for i in range(gridsize[0] * gridsize[1])]
 
@@ -94,11 +97,14 @@ class Agent():
         # self.goal_stamped.pose.position.y = self.goal[1]
         # self.goal_stamped.pose.position.z = 0
         # self.goal_stamped.header.frame_id = "/map"
-
-        self.nn_r = DeepIRLFC(self.NUM_FEATURE, 0.01, 30, 30)
-
+        network_name = config["name"]
+        if (network_name == 'deep_irl_fc'):
+            self.nn_r = DeepIRLFC(self.NUM_FEATURE, config["lr"], config["n_h1"], config["n_h2"])
+        else:
+            self.nn_r = DeepIRLConv(self.NUM_FEATURE, gridsize[0]*gridsize[1], config["lr"], config["n_h1"], config["n_h2"])
         # print("before load weight")
-
+        self.nn_r.weight_path = config["weight_path"]
+        self.nn_r.weight_folder = config["weight_folder"]
         self.nn_r.load_weights()
         self.received_goal = False
         self.sess = tensorflow.Session()
@@ -109,6 +115,10 @@ class Agent():
         self.sess.run ([self.step.initializer])
         init = tensorflow.initialize_all_variables()
         self.sess.run(init)
+        self.current_feature = None
+        self.current_waypoint = None
+        self.received_feature = False
+        self.received_waypoint = False
         # self.traj_pred.session
         print("Init Done!!!!")
 
@@ -121,11 +131,9 @@ class Agent():
         pose_stamped.pose = input_pose
         pose_stamped.header.frame_id = from_frame
         pose_stamped.header.stamp = rospy.Time.now() - rospy.Duration(1.0)
-        print("Time in main is ", pose_stamped.header.stamp)
         try:
             # ** It is important to wait for the listener to start listening. Hence the rospy.Duration(1)
             output_pose_stamped = self.tf_buffer.transform(pose_stamped, to_frame, timeout = rospy.Duration(1))
-            print (output_pose_stamped)
             return output_pose_stamped
 
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
@@ -276,15 +284,16 @@ class Agent():
 
         return np.sqrt(dx**2 + dy**2)
 
-    def get_feature(self, distance, goal, laser = None):
-
-        distance_feature = distance.get_feature_matrix(goal)
-        print ("Distance feature is and goal is ", distance_feature, goal)
+    def get_feature(self, distance = None, goal = None, laser = None):
+        if (not self.received_waypoint):
+            return None
+        distance_feature = self.distance.get_feature_matrix(self.current_waypoint)
+        # print ("Distance feature is and goal is ", distance_feature, goal)
         # while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
         #     distance_feature = distance.get_feature_matrix(goal)
-        if(laser):
-            localcost_feature = laser.get_feature_matrix()
-            print("Local cost feature is ", localcost_feature)
+        if(self.laser):
+            localcost_feature = self.laser.get_feature_matrix()
+            # print("Local cost feature is ", localcost_feature)
             # social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print("social_distance_feature is ", social_distance_feature)
             # print("traj_feature is ", self.traj_feature)
@@ -292,26 +301,27 @@ class Agent():
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
             # print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-            current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
+            self.current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
 
         else:
             print("No laser right?")
             social_distance_feature = np.ndarray.tolist(self.social_distance.get_features())
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
-            current_feature = np.array([distance_feature[i] + [0.0] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
+            self.current_feature = np.array([distance_feature[i] + [1.0] + [0.0] +[0.0] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
             print("Shape of traj_feature is ", len(self.traj_feature))
 
             print("Shape of distance_feature is ", len(distance_feature))
             print("Shape of social_distance_feature is ", len(social_distance_feature))
-        return current_feature
+        self.received_feature = True
+        return self.current_feature
 
     def get_reward_policy(self, feat_map, gridsize, gamma=0.9, act_rand=0):
         rmap_gt = np.ones([gridsize[0], gridsize[1]])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - act_rand)
         P_a = gw.get_transition_mat()
         feat_map_new = np.array(feat_map[:,0:2])
-        print(feat_map_new.shape)
+        # print(feat_map_new.shape)
         reward, policy = get_irl_reward_policy(self.nn_r, feat_map_new.T, P_a,gamma)
 
         return reward, policy
@@ -356,7 +366,7 @@ class Agent():
                         # current_waypoint = waypoint
                         # self.path.append(waypoint)
                         continue
-                    elif self.get_waypointdistance(current_waypoint, waypoint) >= LOOKAHEAD_DIST:
+                    elif self.get_waypointdistance(current_waypoint, waypoint) >= self.lookahead_dist:
                         self.current_waypoint = waypoint
                         break
                         # self.path.append(waypoint)
@@ -366,6 +376,7 @@ class Agent():
                     else:
                         print("Not sure why ")
                         embed()
+            self.received_waypoint = True
             temp_marker = Marker()
             temp_marker.header.frame_id = "map"
             temp_marker.type = 3
@@ -380,51 +391,54 @@ class Agent():
             temp_marker.color.b = 0.0
             self._pub_waypoint.publish(temp_marker)
             # while(np.linalg.norm(self.goal-self.robot_pose, ord=2) > self.dis_thrd and not rospy.is_shutdown()):
-                
-            feature = self.get_feature(self.distance, self.current_waypoint, self.laser)
+            
+            if (not self.received_feature):
+                return
+            # feature = self.get_feature(self.distance, self.current_waypoint, self.laser)
 
-            print("Feature is", feature)
 
-            reward, policy = self.get_reward_policy(feature, self.gridsize)
+            reward, policy = self.get_reward_policy(self.current_feature, self.gridsize)
 
             reward_map = OccupancyGrid()
 
             reward_map.header.stamp = rospy.Time.now()
-            reward_map.header.frame_id = "base_link"
+            reward_map.header.frame_id = "local"
             reward_map.info.resolution = self.resolution
             reward_map.info.width = self.gridsize[0]
             reward_map.info.height = self.gridsize[1]
             reward_map.info.origin.position.x = 0
-            reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-            reward_map.data = [int(cell*100) for cell in normalize(reward)]
-
+            reward_map.info.origin.position.y = 0.0
+            reward_map.data = [int(cell*100) for cell in utils.normalize(reward)]
             self.reward_pub.publish(reward_map)
-
+            dict = {'r' : 0, 'l': 1, 'u': 2, 's': 3}
+            int_policy = [dict[i] for i in policy]
             policy = np.reshape(policy, self.gridsize)
-
-            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-            plt.subplot(2, 2, 1)
-            ax1 = img_utils.heatmap2d(np.reshape(feature[:,0], (self.gridsize[0],self.gridsize[1])), 'Distance Feature', block=False)
-            plt.subplot(2, 2, 2)
-            ax2 = img_utils.heatmap2d(np.reshape(feature[:,1], (self.gridsize[0],self.gridsize[1])), 'Obstacle Feature', block=False)
-            plt.subplot(2, 2, 3)
-            ax3 = img_utils.heatmap2d(np.reshape(reward, (self.gridsize[0],self.gridsize[1])), 'Reward', block=False)
-            plt.subplot(2, 2, 4)
-            # ax3 = img_utils.heatmap2d(np.reshape(policy, (self.gridsize[0],self.gridsize[1])), 'Policy', block=False)
-            s = StringIO()
             
-            plt.savefig(s, format='png')
-            img_sum = tensorflow.Summary.Image(encoded_image_string=s.getvalue())
-            im_summaries = []
-            im_summaries.append(tensorflow.Summary.Value(tag='%s/%d' % ("main", self.counter), image=img_sum))
-            summary = tensorflow.Summary(value=im_summaries)
-            self.writer.add_summary(summary, self.counter)
-            self.sess.run(self.step_update)
-            # self.sess.run(self.writer_flush)
-            print ("The reward and pollicy are:", reward, policy)
-            self.counter +=1
+            if (VISUALIZE_TENSORBOARD):
+                fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+                plt.subplot(2, 2, 1)
+                ax1 = img_utils.heatmap2d(np.reshape(self.current_feature[:,0], (self.gridsize[0],self.gridsize[1])), 'Distance Feature', block=False)
+                plt.subplot(2, 2, 2)
+                ax2 = img_utils.heatmap2d(np.reshape(self.current_feature[:,1], (self.gridsize[0],self.gridsize[1])), 'Obstacle Feature', block=False)
+                plt.subplot(2, 2, 3)
+                ax3 = img_utils.heatmap2d(np.reshape(reward, (self.gridsize[0],self.gridsize[1])), 'Reward', block=False)
+                plt.subplot(2, 2, 4)
+                ax3 = img_utils.heatmap2d(np.reshape(int_policy, (self.gridsize[0],self.gridsize[1])), 'Policy', block=False)
+                s = StringIO()
+                
+                plt.savefig(s, format='png')
+                img_sum = tensorflow.Summary.Image(encoded_image_string=s.getvalue())
+                im_summaries = []
+                im_summaries.append(tensorflow.Summary.Value(tag='%s/%d' % ("main", self.counter), image=img_sum))
+                summary = tensorflow.Summary(value=im_summaries)
+                self.writer.add_summary(summary, self.counter)
+                self.sess.run(self.step_update)
+                # self.sess.run(self.writer_flush)
+                # print ("The reward and dist feature are:", reward, self.current_feature[:,0])
+                self.counter +=1
+
             self.controller.get_irl_path(policy)       
-            self.controller.irl_path.header.frame_id = 'map'
+            self.controller.irl_path.header.frame_id = 'my_map_frame'
             self.controller.irl_path.header.stamp = rospy.Time.now()
 
             if(self.controller.error):
@@ -432,10 +446,8 @@ class Agent():
                 return False
 
             # print("length of controller is ",len(controller.irl_path.poses))
-
             self.controller.path_pub.publish(self.controller.irl_path)
             self.controller.irl_path = Path()
-            rospy.sleep(0.1)
             # print(self.result)
             # print("Inside the while loop")
             # while(self.result == False):
@@ -508,39 +520,35 @@ class Agent():
 
         return self.result
 
-
-    def log_images(self, tag, images, step):
-        """Logs a list of images."""
-        im_summaries = []
-        for nr, img in enumerate(images):
-            # Write the image to a string
-            s = StringIO()
-            plt.imsave(s, img, format='png')
-
-            # Create an Image object
-            img_sum = tf.Summary.Image(encoded_image_string=s.getvalue(),
-                                        height=img.shape[0],
-                                        width=img.shape[1])
-            # Create a Summary value
-            im_summaries.append(tf.Summary.Value(tag='%s/%d' % (tag, nr),
-                                                    image=img_sum))
-
-        # Create and write Summary
-        summary = tf.Summary(value=im_summaries)
-        self.writer.add_summary(summary, step)
-
 if __name__ == "__main__":
     goal1 = np.array([0,4])
     goal2 = np.array([0,-4])
     gridsize = np.array([3, 3])
     resolution = 0.5
-    agent = Agent(gridsize, resolution)
+    dataset_path = "../dataset_2"
+    weight_path = dataset_path+"/weights2"
+    with open(weight_path+"/config.yml", 'r') as file:
+        config1 = yaml.safe_load(file)
+    with open(dataset_path+"/demo_0/config.yml", 'r') as file:
+        config2 = yaml.safe_load(file)
+    config1.update(config2)
+    config = {"weight_path": weight_path+"/saved_weights", "weight_folder": weight_path}
+    config.update(config1)
+    agent = Agent(config)
+    agent.writer.flush()
     success = 0
     
     # fail = 0
     while(not rospy.is_shutdown()):
+        start_time = rospy.Time.now()
+        agent.get_feature()
+        after_feature = rospy.Time.now()
+        print ("Time taken to get the fetaure is ", after_feature.secs - start_time.secs)
         agent.main()
-        # rospy.sleep(0.5)
+        after_main = rospy.Time.now()
+        print ("Time taken in main is ", after_main.secs - after_feature.secs)
+        print ("Time taken for one run is ", after_main.secs - start_time.secs)
+        rospy.sleep(0.1)
     # while(not rospy.is_shutdown()):
     #     # First Goal
     #     start = input("Input any key when you are ready: ")

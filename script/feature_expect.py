@@ -33,7 +33,6 @@ from collections import deque
 from nav_msgs.srv import GetPlan
 from visualization_msgs.msg import Marker, MarkerArray
 
-LOOKAHEAD_DIST = 1.5
 def transform_pose(input_pose, from_frame, to_frame):
 
     # **Assuming /tf2 topic is being broadcasted
@@ -98,7 +97,8 @@ class FeatureExpect():
         self.bad_feature = False
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
-        self.demo_num = "demo_4"
+        self.folder_path = "../dataset_0/"+"demo_0"
+        self.lookahead_dist = 1.0
         # self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         # self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
         # self.initpose = PoseWithCovarianceStamped()
@@ -262,7 +262,7 @@ class FeatureExpect():
                             # current_waypoint = waypoint
                             # self.path.append(waypoint)
                             continue
-                        elif self.get_waypointdistance(current_waypoint, waypoint) >= LOOKAHEAD_DIST:
+                        elif self.get_waypointdistance(current_waypoint, waypoint) >= self.lookahead_dist:
                             self.current_waypoint = waypoint
                             break
                             # self.path.append(waypoint)
@@ -296,7 +296,6 @@ class FeatureExpect():
     def get_current_feature(self):
         # 
         self.localcost_feature = self.Laser2density.get_feature_matrix()
-        print("Local cost feature is ", self.localcost_feature)
         # self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # feature_list = [self.social_distance_feature]
         # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
@@ -310,11 +309,10 @@ class FeatureExpect():
                 return
             else:
                 self.bad_feature = False
-            if (np.linalg.norm(self.distance_feature-np.zeros(len(self.distance_feature)))<0.5):
-                self.recived_goal = False
-                print(self.distance_feature)
-                print("Finished this goal, need new one")
-                exit(0)
+            # if (np.linalg.norm(self.distance_feature-np.zeros(len(self.distance_feature)))<0.5):
+            #     self.recived_goal = False
+            #     print("Finished this goal, need new one")
+            #     exit(0)
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
         self.feature_maps.append(np.array(self.current_feature).T)
         reward_map = OccupancyGrid()
@@ -325,13 +323,11 @@ class FeatureExpect():
         reward_map.info.height = self.gridsize[1]
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-        print ("Current feature is ", self.current_feature)
         reward_map.data = [int(cell) for cell in self.current_feature[1]]
         self.reward_pub.publish(reward_map)
         single_feature = np.array(self.current_feature).T
-        print ("Single feature is", single_feature)
         if (self.received_goal):
-            fm_file = "../dataset/"+self.demo_num+"/fm/fm_"+str(self.counter)+".npz"
+            fm_file = self.folder_path+"/fm/fm_"+str(self.counter)+".npz"
             np.savez(fm_file, *single_feature)
             self.counter +=1
 
@@ -363,17 +359,16 @@ class FeatureExpect():
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
         percent_temp = 0        
         traj_files = []
-        print("Len of robot_poses and current counter and trajs", len(self.robot_poses), self.counter, len(self.trajs))
         remove_indices = []
         distance = np.sqrt((self.robot_pose[0] - self.goal.pose.position.x)**2+(self.robot_pose[1] - self.goal.pose.position.y)**2)
         for i in range(len(self.robot_poses)):
             # Robot pose
             index, robot_pose_rb = self.get_index_in_robot_frame(self.robot_poses[i], R1)
-            if(distance < 0.2 or not index):
+            if(distance < max(self.resolution,0.35) or not index):
                 remove_indices.append(i)
                 traj_counter = int(i+(self.counter - len(self.robot_poses)))
                 
-                traj_files.append(["../dataset/"+self.demo_num+"/trajs/trajs_"+str(traj_counter)+".npz"])
+                traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
                 print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
                 if (distance <0.1):
                     print("Finished a goal! ")
@@ -381,7 +376,6 @@ class FeatureExpect():
                 #### Save the traj queue here #### 
                 continue
             unraveled_index = index[1]*self.gridsize[1]+index[0]
-            print("Relative robot_pose is ", robot_pose_rb, "Index is ", index)
             if(not unraveled_index in self.trajs[i]):
                 self.trajs[i].append(unraveled_index)
             # print("trajs array is ", self.trajs[i])
@@ -437,23 +431,20 @@ class FeatureExpect():
 
 
 if __name__ == "__main__":
-        rospy.init_node("Feature_expect",anonymous=False)
-        # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
-        feature = FeatureExpect(resolution=0.5, gridsize=(3,3))
+    rospy.init_node("Feature_expect",anonymous=False)
+    # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
+    feature = FeatureExpect(resolution=0.5, gridsize=(3,3))
 
-        fm_file = "../dataset/demo_4/fm/fm.npz"
-        traj_file = "../dataset/demo_4/trajs/trajs.npz"
-
-        feature.demo_num = "demo_12"
-        # while(not feature.initpose_get):
-        #     rospy.sleep(0.1)
-        # feature.reset_robot()
-        rospy.sleep(1)
-        # while(not feature.received_goal):
-        #     rospy.sleep(0.1)
-        # np.savez(fm_file, *feature.feature_maps)
-        print("Feature map is ", feature.feature_maps)
-        print("Rospy shutdown", rospy.is_shutdown())
-        while(not rospy.is_shutdown()):
-            feature.get_expect()
-            rospy.sleep(0.1)
+    fm_file = "../dataset/demo_4/fm/fm.npz"
+    traj_file = "../dataset/demo_4/trajs/trajs.npz"
+    # while(not feature.initpose_get):
+    #     rospy.sleep(0.1)
+    # feature.reset_robot()
+    rospy.sleep(1)
+    # while(not feature.received_goal):
+    #     rospy.sleep(0.1)
+    # np.savez(fm_file, *feature.feature_maps)
+    print("Rospy shutdown", rospy.is_shutdown())
+    while(not rospy.is_shutdown()):
+        feature.get_expect()
+        rospy.sleep(0.1)

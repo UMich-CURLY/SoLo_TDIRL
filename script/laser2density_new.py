@@ -11,6 +11,7 @@ import tf2_geometry_msgs
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
 from visualization_msgs.msg import MarkerArray, Marker
+import utils
 
 class laser2density():
 
@@ -23,6 +24,7 @@ class laser2density():
         self.mapsub = rospy.Subscriber("/move_base/local_costmap/costmap", OccupancyGrid, self.map_callback, queue_size=10)
         self.map_update_sub = rospy.Subscriber("/move_base/local_costmap/costmap_updates", OccupancyGridUpdate, self.map_update_callback, queue_size=1)
         self._pub_markers = rospy.Publisher("~grid_points", MarkerArray, queue_size = 1)
+        self.obs_pub = rospy.Publisher("obs_map", OccupancyGrid, queue_size=0)
         self.temp_result = [[1,0,0]]*gridsize[0] * gridsize[1]
         print("Initializing!")
         rospy.sleep(1.0)
@@ -60,16 +62,16 @@ class laser2density():
             pose_now = Pose()
             pose_now.position.x = x
             pose_now.position.y = y
-            pose_in_base = self.transform_pose(pose_now, "map", "base_link")
+            pose_in_base = self.transform_pose(pose_now, "map", "base_frame")
             position_x, position_y = pose_in_base.pose.position.x, pose_in_base.pose.position.y
             if (self.in_which_cell([position_x, position_y])):
                 grid_x, grid_y = self.in_which_cell([position_x, position_y])
                 temp_marker = Marker()
-                temp_marker.header.frame_id = "base_link"
+                temp_marker.header.frame_id = "base_frame"
                 temp_marker.id = i
                 temp_marker.type = 1
                 center_x, center_y = self.get_grid_center_position([grid_x, grid_y])
-                temp_marker.pose.position.x = center_x
+                temp_marker.pose.position.x = center_x 
                 temp_marker.pose.position.y = center_y
                 self.result_grid[int(grid_x), int(grid_y)] = max(self.result_grid[int(grid_x), int(grid_y)], msg.data[i])
                 temp_marker.scale.x = self.resolution
@@ -81,6 +83,8 @@ class laser2density():
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
         self._pub_markers.publish(markers)
+        print("Map callback!")
+        return True
 
     def convert_local_map_to_position(self, index):
         position_x = (index // self.map_h) * self.map_resolution + self.map_resolution/2
@@ -96,12 +100,12 @@ class laser2density():
             pose_now = Pose()
             pose_now.position.x = x
             pose_now.position.y = y
-            pose_in_base = self.transform_pose(pose_now, "map", "base_link")
+            pose_in_base = self.transform_pose(pose_now, "map", "base_frame")
             position_x, position_y = pose_in_base.pose.position.x, pose_in_base.pose.position.y
             if (self.in_which_cell([position_x, position_y])):
                 grid_x, grid_y = self.in_which_cell([position_x, position_y])
                 temp_marker = Marker()
-                temp_marker.header.frame_id = "base_link"
+                temp_marker.header.frame_id = "base_frame"
                 temp_marker.id = i
                 temp_marker.type = 1
                 center_x, center_y = self.get_grid_center_position([grid_x, grid_y])
@@ -116,7 +120,9 @@ class laser2density():
                 temp_marker.color.g = 1.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
+        print ("Map update callback")
         self._pub_markers.publish(markers)
+        return True
 
     def inside_grid(self, x, y):
         if(x>=0 and x<self.gridsize[0] and y>=0 and y<self.gridsize[1]):
@@ -128,15 +134,27 @@ class laser2density():
         print ("Inside function ", self.got_data)
         if (not self.got_data):
             return self.temp_result
+        result = np.reshape(self.result_grid, self.gridsize[0]*self.gridsize[1])
         for i in range(self.gridsize[0]):
             for j in range(self.gridsize[1]):
-                index = self.gridsize[0]*i + j % self.gridsize[1]
+                index = self.gridsize[1]*j + i % self.gridsize[0]
+                result[index] = self.result_grid[i,j]
                 if (self.result_grid[i,j] >65):
                     self.temp_result[index] = [0,0,1]
                 elif (self.result_grid[i,j]<35):
                     self.temp_result[index] = [1,0,0]
                 else:
                     self.temp_result[index] = [0,1,0]
+        obs_map = OccupancyGrid()
+        obs_map.header.stamp = rospy.Time.now()
+        obs_map.header.frame_id = "local"
+        obs_map.info.resolution = self.resolution
+        obs_map.info.width = self.gridsize[0]
+        obs_map.info.height = self.gridsize[1]
+        obs_map.info.origin.position.x = 0
+        obs_map.info.origin.position.y = 4
+        obs_map.data = [int(cell) for cell in result]
+        self.obs_pub.publish(obs_map)
         return self.temp_result
 
     def in_which_cell(self, pose):

@@ -24,7 +24,7 @@ from deep_maxent_irl_ori import *
 from maxent_irl import *
 from utils import *
 from lp_irl import *
-
+import yaml
 # N_gridworld = 1
 Step = namedtuple('Step','cur_state next_state')
 
@@ -38,7 +38,15 @@ class IRL_Agent():
         self.LEARNING_RATE = 0.01
         self.N_ITERS = 1
         self.good_percent = 0.50
-    
+        self.data_path = "../dataset_1"
+        self.weights_folder = "weights"
+        if self.weights_folder not in os.listdir(self.data_path):
+            __ = os.system("mkdir " + self.data_path+"/"+self.weights_folder)
+        else:
+            print("Do you want to re train?")
+            embed()
+        self.weight_path = self.data_path+"/"+self.weights_folder+"/saved_weights"
+        
     def calculate_good_percent(self):
         total = len(self.percent_change)
         bad_num = np.count_nonzero(self.percent_change)
@@ -187,7 +195,7 @@ class IRL_Agent():
         # Get the feature map and trajectory.
         # test_1 contain the trajectory loss
         traj = []
-        for foldername in os.listdir("../dataset/"):
+        for foldername in os.listdir(self.data_path):
             number_str = "_"
             valid = False
             for m in foldername:
@@ -198,9 +206,7 @@ class IRL_Agent():
                     valid = False
             if (not valid):
                 continue
-            if (int(m) < 5):
-                continue
-            folder = "../dataset/demo"+number_str
+            folder = self.data_path+"/demo"+number_str
             for filename in os.listdir(folder+"/trajs/"):
                 # print(filename)
                 number_str = "_"
@@ -295,8 +301,12 @@ class IRL_Agent():
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - self.ACT_RAND)
         P_a = gw.get_transition_mat()
         # deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, n_iters)
-        rewards, nn_r = deep_maxent_irl_no_traj_loss_tribhi(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS)
+        rewards, nn_r = deep_maxent_irl_no_traj_loss_tribhi(self.fms, P_a, self.GAMMA, self.trajs, self.LEARNING_RATE, self.N_ITERS, self.weight_path)
         print ("The reward is ", rewards)
+
+        config_vals = {"name": nn_r.name, "lr": nn_r.lr, "n_h1": nn_r.n_h1, "n_h2": nn_r.n_h2, "n_iters": self.N_ITERS, "gamma": self.GAMMA}
+        with open(self.data_path+"/"+self.weights_folder+"/config.yml", 'w') as file:
+            yaml.dump(config_vals, file)
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
         plt.subplot(2, 2, 1)
         ax1 = img_utils.heatmap2d(np.reshape(self.fms[3][0], (self.H,self.W)), 'Distance Feature', block=False)
