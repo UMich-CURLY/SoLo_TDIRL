@@ -10,7 +10,10 @@ from utils import *
 import matplotlib.pyplot as plt
 import time
 from IPython import embed
-from StringIO import StringIO
+try:
+  from StringIO import StringIO
+except:
+  from io import StringIO
 
 class DeepIRLFC:
   def __init__(self, n_input, lr, n_h1=400, n_h2=300, l2=10, name='deep_irl_fc'):
