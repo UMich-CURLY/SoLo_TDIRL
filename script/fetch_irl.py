@@ -44,7 +44,6 @@ class IRL_Agent():
             __ = os.system("mkdir " + self.data_path+"/"+self.weights_folder)
         else:
             print("Do you want to re train?")
-            embed()
         self.weight_path = self.data_path+"/"+self.weights_folder+"/saved_weights"
         
     def calculate_good_percent(self):

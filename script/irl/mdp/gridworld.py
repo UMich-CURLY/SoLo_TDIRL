@@ -152,7 +152,7 @@ class GridWorld(object):
         inc = self.neighbors[a]
         nei_s = (state[0] + inc[0], state[1] + inc[1])
         if nei_s[0] < 0 or nei_s[0] >= self.height or \
-           nei_s[1] < 0 or nei_s[1] >= self.width or self.grid[nei_s[0]][nei_s[1]] == 'x':
+           nei_s[1] < 0 or nei_s[1] >= self.width or self.grid[int(nei_s[0])][int(nei_s[1])] == 'x':
           # if the move is invalid, accumulates the prob to the current state
           mov_probs[self.n_actions-1] += mov_probs[a]
           mov_probs[a] = 0

@@ -1,10 +1,10 @@
 from random import randint
 import numpy as np
-import tensorflow as tf
 import mdp.gridworld as gridworld
 import mdp.value_iteration as value_iteration
 import img_utils
 import tf_utils
+import tensorflow.compat.v1 as v1
 import tensorflow as tf
 from utils import *
 import matplotlib.pyplot as plt
@@ -22,13 +22,12 @@ class DeepIRLFC:
     self.n_h1 = n_h1
     self.n_h2 = n_h2
     self.name = name
-    self.sess = tf.Session()
     self.input_s, self.reward, self.theta = self._build_network(self.name)
     # self.optimizer = tf.train.GradientDescentOptimizer(lr)
     self.optimizer = tf.train.AdamOptimizer(learning_rate=lr)
 
     
-    self.grad_r = tf.placeholder(tf.float32, [None, 1])
+    self.grad_r = v1.placeholder(tf.float32, [None, 1])
     self.l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in self.theta])
     self.grad_l2 = tf.gradients(self.l2_loss, self.theta)
 
@@ -37,7 +36,7 @@ class DeepIRLFC:
     self.grad_theta = [tf.add(l2*self.grad_l2[i], self.grad_theta[i]) for i in range(len(self.grad_l2))]
     self.grad_theta, _ = tf.clip_by_global_norm(self.grad_theta, 100.0)
 
-    self.grad_norms = tf.global_norm(self.grad_theta)
+    self.grad_norms = v1.global_norm(self.grad_theta)
     self.optimize = self.optimizer.apply_gradients(zip(self.grad_theta, self.theta))
     self.sess.run(tf.global_variables_initializer())
     self.saver = tf.train.Saver()
@@ -46,12 +45,13 @@ class DeepIRLFC:
 
 
   def _build_network(self, name):
-    input_s = tf.placeholder(tf.float32, [None, self.n_input])
-    with tf.variable_scope(name):
+    # input_s = v1.placeholder(tf.float32, [None, self.n_input])
+
+    with v1.variable_scope(name):
       fc1 = tf_utils.fc(input_s, self.n_h1, scope="fc1", activation_fn=tf.nn.relu,
-        initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
+        initializer=tf.keras.layers.variance_scaling_initializer(mode="FAN_IN"))
       fc2 = tf_utils.fc(fc1, self.n_h2, scope="fc2", activation_fn=tf.nn.relu,
-        initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
+        initializer=tf.keras.layers.variance_scaling_initializer(mode="FAN_IN"))
       reward = tf_utils.fc(fc2, 1, scope="reward")
     theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
