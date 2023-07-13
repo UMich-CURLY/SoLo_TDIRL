@@ -21,9 +21,9 @@ import img_utils
 from mdp import gridworld
 from mdp import value_iteration
 from deep_maxent_irl_ori import *
-from maxent_irl import *
+# from maxent_irl import *
 from utils import *
-from lp_irl import *
+# from lp_irl import *
 import yaml
 # N_gridworld = 1
 Step = namedtuple('Step','cur_state next_state')
