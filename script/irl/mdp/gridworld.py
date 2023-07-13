@@ -324,7 +324,8 @@ class GridWorld(object):
         for posj, prob in probs:
           sj = self.pos2idx(posj)
           # Prob of si to sj given action a
-          P_a[si, sj, a] = prob
+          if (sj >0 and sj<N_STATES):
+            P_a[si, sj, a] = prob
     return P_a
 
   def get_values_mat(self, values):
@@ -357,7 +358,7 @@ class GridWorld(object):
     returns:
       1d index
     """
-    return pos[0] + pos[1] * self.height
+    return int(pos[0] + pos[1] * self.height)
 
   def idx2pos(self, idx):
     """
