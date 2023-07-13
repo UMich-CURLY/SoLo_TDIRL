@@ -4,7 +4,6 @@ import tensorflow as tf
 import mdp.gridworld as gridworld
 import mdp.value_iteration as value_iteration
 import img_utils
-import rospy
 import tf_utils
 import tensorflow as tf
 from utils import *
