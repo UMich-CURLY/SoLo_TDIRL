@@ -82,8 +82,7 @@ class laser2density():
                 temp_marker.color.g = 1.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
-        self._pub_markers.publish(markers)
-        print("Map callback!")
+        self._pub_markers.publish(markers)        
         return True
 
     def convert_local_map_to_position(self, index):
@@ -120,7 +119,6 @@ class laser2density():
                 temp_marker.color.g = 1.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
-        print ("Map update callback")
         self._pub_markers.publish(markers)
         return True
 

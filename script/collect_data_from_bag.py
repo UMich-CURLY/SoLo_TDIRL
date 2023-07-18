@@ -58,7 +58,7 @@ if __name__ == "__main__":
     rospy.init_node("Feature_expect",anonymous=False)
     # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
     resolution = 0.2
-    gridsize = (31,31)
+    gridsize = (11,11)
     lookahead_dist = gridsize[0]*resolution
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
@@ -75,6 +75,19 @@ if __name__ == "__main__":
     # np.savez(fm_file, *feature.feature_maps)
     print("Feature map is ", feature.feature_maps)
     print("Rospy shutdown", rospy.is_shutdown())
+    full_start_time = rospy.Time.now()
     while(not rospy.is_shutdown()):
+        start_time = rospy.Time.now()
         feature.get_expect()
-        rospy.sleep(0.1)
+        end_time = rospy.Time.now()
+        time_diff = (end_time - start_time).to_sec()
+
+        if(time_diff >0.1):
+            print("Slow down bag file ")
+            exit(0)
+        if (not time_diff == 0.0):
+            rospy.sleep(0.1-time_diff)
+        else:
+            rospy.sleep(0.1)
+        full_loop_time = rospy.Time.now()
+        print("Loop time is ", (full_loop_time-full_start_time).to_sec())

@@ -9,8 +9,8 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/'))
 from pyparsing import empty
 from distance2goal import Distance2goal
 from laser2density_new import laser2density
-from social_distance import SocialDistance
-from traj_predict import TrajPred
+# from social_distance import SocialDistance
+# from traj_predict import TrajPred
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped, PoseArray
 import numpy as np
@@ -63,7 +63,7 @@ class FeatureExpect():
         self.received_goal = False
         self.Laser2density = laser2density(gridsize=gridsize, resolution=resolution)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
-        self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
+        # self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
         ### Replace with esfm
         self.sub_people = rospy.Subscriber("sim/agent_poses", PoseArray, self.people_callback, queue_size=100)
@@ -77,6 +77,7 @@ class FeatureExpect():
         self.tf_listener =  tf.TransformListener()
         self.feature_maps = []
         self.trajs = []
+        self.all_trajs = []
         self.percent_reward = []
         self.fm_dict = {}
         self.traj_dict = {}
@@ -286,9 +287,6 @@ class FeatureExpect():
                     temp_marker.color.b = 0.0
                     self._pub_waypoint.publish(temp_marker)
                     distance2goal = np.sqrt( (self.robot_pose[0] - self.goal.pose.position.x)**2 + (self.robot_pose[1] -self.goal.pose.position.y)**2 )
-                    if(distance2goal <= 1.5):
-                        print("Reached the goal!!!")
-                        self.reached_goal = True
                 else:
                     print("path.pose == 0!!!!!")
                     # self.path = []
@@ -348,13 +346,15 @@ class FeatureExpect():
                 return 
         except:
             pass
+        if (self.bad_feature):
+            return
         self.robot_poses.append(R1)
         index, pose = self.get_index_in_robot_frame(R1,R1)
         unraveled_index = index[1]*self.gridsize[1]+index[0]
         self.trajs.append([unraveled_index])
+        self.all_trajs.append([unraveled_index])
         self.get_current_feature()
-        if (self.bad_feature):
-            return
+        
         
         self.feature_expect = np.array([0 for i in range(len(self.current_feature[0]))], dtype=np.float64)
         percent_temp = 0        
@@ -364,32 +364,41 @@ class FeatureExpect():
         for i in range(len(self.robot_poses)):
             # Robot pose
             index, robot_pose_rb = self.get_index_in_robot_frame(self.robot_poses[i], R1)
-            if(distance < max(self.resolution,0.35) or not index):
+            if(not index):
                 remove_indices.append(i)
                 traj_counter = int(i+(self.counter - len(self.robot_poses)))
-                
                 traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
                 print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
-                if (distance <0.1):
-                    print("Finished a goal! ")
-                    self.received_goal = False
+                continue
+            if (distance < max(self.resolution, 0.35)):
+                remove_indices.append(i)
+                traj_counter = int(i+(self.counter - len(self.robot_poses)))
+                traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
+                print("Traj is ", self.all_trajs[traj_counter])
                 #### Save the traj queue here #### 
                 continue
             unraveled_index = index[1]*self.gridsize[1]+index[0]
             if(not unraveled_index in self.trajs[i]):
                 self.trajs[i].append(unraveled_index)
+                self.all_trajs[int(i+(self.counter - len(self.robot_poses)))].append(unraveled_index)
             # print("trajs array is ", self.trajs[i])
-        print("distance ", distance)
+        
             # Whether the robot reaches the goal
         
         for j in range(len(remove_indices)):
             index = int(remove_indices[j])
-            np.savez(traj_files[j][0], self.trajs[index])
             del self.robot_poses[index]
             # np.savez(traj_files[index][0], self.trajs[index])
             del self.trajs[index]
             remove_indices = remove_indices-np.ones(len(remove_indices))
-            print("writing the traj file and removing index ", index, remove_indices)
+
+        if (distance <0.35):
+            print("Finished a goal! ")
+            self.received_goal = False
+            print("Full Traj is ", self.all_trajs)
+            for i in range(len(self.all_trajs)):
+                path = self.folder_path+"/trajs/trajs_"+str(i)+".npz"
+                np.savez(path, self.all_trajs[i])
             # print("distance: ", distance)
         # self.traj = [self.trajectory[i][1]*self.gridsize[1]+self.trajectory[i][0] for i in range(len(self.trajectory))]
 
@@ -447,4 +456,4 @@ if __name__ == "__main__":
     print("Rospy shutdown", rospy.is_shutdown())
     while(not rospy.is_shutdown()):
         feature.get_expect()
-        rospy.sleep(0.1)
+        rospy.sleep(0)
