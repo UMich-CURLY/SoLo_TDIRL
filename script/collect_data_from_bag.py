@@ -4,6 +4,17 @@ import argparse
 import rospy
 import feature_expect
 from IPython import embed
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
+import img_utils
+try:
+  from StringIO import StringIO
+except:
+  from io import StringIO
+import tensorflow as tf
+import numpy as np
 PARSER = argparse.ArgumentParser(description=None)
 PARSER.add_argument('-n', '--new_fol', default= False, type=bool, help='new')
 ARGS = PARSER.parse_args()
@@ -82,7 +93,7 @@ if __name__ == "__main__":
         end_time = rospy.Time.now()
         time_diff = (end_time - start_time).to_sec()
 
-        if(time_diff >0.1):
+        if(time_diff >0.1 and feature.received_goal == True):
             print("Slow down bag file ")
             exit(0)
         if (not time_diff == 0.0):
@@ -91,3 +102,39 @@ if __name__ == "__main__":
             rospy.sleep(0.1)
         full_loop_time = rospy.Time.now()
         print("Loop time is ", (full_loop_time-full_start_time).to_sec())
+        if (feature.reached_goal):
+            train_summary_writer = tf.summary.FileWriter(next_folder_name+"/logs1")
+
+            train_summary_writer.flush()
+            
+            for j in range(0,len(feature.feature_maps), 5):
+                traj = feature.all_trajs[j]
+                fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+                plt.subplot(2, 2, 1)
+                ax1 = img_utils.heatmap2d(np.reshape(feature.feature_maps[j][0], (gridsize[0], gridsize[1])), 'Distance Feature', block=False)
+                plt.subplot(2, 2, 2)
+                if (feature.feature_maps[j].shape[0] > 1):
+                    ax2 = img_utils.heatmap2d(np.reshape(feature.feature_maps[j][1], (gridsize[0], gridsize[1])), 'Obstacle Feature', block=False)
+                # plt.subplot(2, 2, 3)
+                # ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
+                
+                s = StringIO()
+
+                traj_viz = np.zeros(gridsize[0]*gridsize[1])
+                maxval = 1.0
+                i = 0
+                for index in traj:
+                    traj_viz[int(index)] = maxval - i*0.075
+                    i+=1
+
+                plt.subplot(2, 2, 4)
+                ax4 = img_utils.heatmap2d(np.reshape(traj_viz, (gridsize[0], gridsize[1])), 'Observed Traj', block=False)
+                plt.savefig(s, format='png')
+                plt.close('all')
+                img_sum = tf.Summary.Image(encoded_image_string=s.getvalue())
+                s.close()
+                im_summaries = []
+                im_summaries.append(tf.Summary.Value(tag='%s/%d' % ("train", j), image=img_sum))
+                summary = tf.Summary(value=im_summaries)
+                train_summary_writer.add_summary(summary, j)
+            exit(0)

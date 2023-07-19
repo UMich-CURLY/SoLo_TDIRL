@@ -78,6 +78,7 @@ class FeatureExpect():
         self.feature_maps = []
         self.trajs = []
         self.all_trajs = []
+        self.all_robot_poses = []
         self.percent_reward = []
         self.fm_dict = {}
         self.traj_dict = {}
@@ -100,6 +101,7 @@ class FeatureExpect():
         self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
         self.folder_path = "../dataset_0/"+"demo_0"
         self.lookahead_dist = 1.0
+        self.reached_goal = False
         # self.initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
         # self.initpose_sub = rospy.Subscriber("/initialpose", PoseWithCovarianceStamped, self.initpose_callback, queue_size=1)
         # self.initpose = PoseWithCovarianceStamped()
@@ -349,6 +351,7 @@ class FeatureExpect():
         if (self.bad_feature):
             return
         self.robot_poses.append(R1)
+        self.all_robot_poses.append(R1)
         index, pose = self.get_index_in_robot_frame(R1,R1)
         unraveled_index = index[1]*self.gridsize[1]+index[0]
         self.trajs.append([unraveled_index])
@@ -361,22 +364,34 @@ class FeatureExpect():
         traj_files = []
         remove_indices = []
         distance = np.sqrt((self.robot_pose[0] - self.goal.pose.position.x)**2+(self.robot_pose[1] - self.goal.pose.position.y)**2)
-        for i in range(len(self.robot_poses)):
+        # for i in range(len(self.robot_poses)):
+        #     # Robot pose
+        #     index, robot_pose_rb = self.get_index_in_robot_frame(self.robot_poses[i], R1)
+        #     if(not index):
+        #         remove_indices.append(i)
+        #         traj_counter = int(i+(self.counter - len(self.robot_poses)))
+        #         traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
+        #         print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
+        #         continue
+        #     if (distance < max(self.resolution, 0.35)):
+        #         remove_indices.append(i)
+        #         traj_counter = int(i+(self.counter - len(self.robot_poses)))
+        #         traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
+        #         print("Traj is ", self.all_trajs[traj_counter])
+        #         #### Save the traj queue here #### 
+        #         continue
+        #     unraveled_index = index[1]*self.gridsize[1]+index[0]
+        #     if(not unraveled_index in self.trajs[i]):
+        #         self.trajs[i].append(unraveled_index)
+        #         self.all_trajs[int(i+(self.counter - len(self.robot_poses)))].append(unraveled_index)
+
+        for i in range(len(self.all_robot_poses)):
             # Robot pose
-            index, robot_pose_rb = self.get_index_in_robot_frame(self.robot_poses[i], R1)
+            index, robot_pose_rb = self.get_index_in_robot_frame(self.all_robot_poses[i], R1)
             if(not index):
-                remove_indices.append(i)
-                traj_counter = int(i+(self.counter - len(self.robot_poses)))
-                traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
-                print("wanting to remove indices ", i, "Traj counter is ", traj_counter, len(traj_files))
                 continue
-            if (distance < max(self.resolution, 0.35)):
-                remove_indices.append(i)
-                traj_counter = int(i+(self.counter - len(self.robot_poses)))
-                traj_files.append([self.folder_path+"/trajs/trajs_"+str(traj_counter)+".npz"])
-                print("Traj is ", self.all_trajs[traj_counter])
-                #### Save the traj queue here #### 
-                continue
+            if (distance < max(self.resolution, 0.2)):
+                break
             unraveled_index = index[1]*self.gridsize[1]+index[0]
             if(not unraveled_index in self.trajs[i]):
                 self.trajs[i].append(unraveled_index)
@@ -385,16 +400,17 @@ class FeatureExpect():
         
             # Whether the robot reaches the goal
         
-        for j in range(len(remove_indices)):
-            index = int(remove_indices[j])
-            del self.robot_poses[index]
-            # np.savez(traj_files[index][0], self.trajs[index])
-            del self.trajs[index]
-            remove_indices = remove_indices-np.ones(len(remove_indices))
+        # for j in range(len(remove_indices)):
+        #     index = int(remove_indices[j])
+        #     del self.robot_poses[index]
+        #     # np.savez(traj_files[index][0], self.trajs[index])
+        #     del self.trajs[index]
+        #     remove_indices = remove_indices-np.ones(len(remove_indices))
 
         if (distance <0.35):
             print("Finished a goal! ")
             self.received_goal = False
+            self.reached_goal = True
             print("Full Traj is ", self.all_trajs)
             for i in range(len(self.all_trajs)):
                 path = self.folder_path+"/trajs/trajs_"+str(i)+".npz"
