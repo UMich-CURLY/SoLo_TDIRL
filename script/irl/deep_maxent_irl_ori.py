@@ -932,7 +932,7 @@ def deep_maxent_irl_traj_loss(feat_maps, P_a, gamma, trajs,percent_change,  lr, 
   # print(policy)
   # print(rewards)
   # return sigmoid(normalize(rewards))
-  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's', 4: 'ru', 5: 'lu'}
   policy = [dict[i] for i in policy]
   print(np.array(policy).reshape(3,3))
 
@@ -952,7 +952,7 @@ def get_irl_reward_policy(nn_r,feat_maps, P_a, gamma=0.9,lr=0.001):
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
-  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's', 4: 'ru', 5: 'lu'}
   policy = [dict[i] for i in policy]
 
   # print(np.array(policy).reshape(3,3))
@@ -971,7 +971,7 @@ def get_policy(rewards, P_a, gamma=0.9,lr=0.001):
 
   value, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
   # return sigmoid(normalize(rewards))
-  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's'}
+  dict = {0: 'r', 1: 'l', 2: 'u', 3: 's', 4: 'ru', 5: 'lu'}
   policy = [dict[i] for i in policy]
 
   # print(np.array(policy).reshape(3,3))

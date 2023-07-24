@@ -36,7 +36,7 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.01
-        self.N_ITERS = 0
+        self.N_ITERS = 1
         self.good_percent = 0.50
         self.data_path = "../dataset_1"
         self.weights_folder = "weights"

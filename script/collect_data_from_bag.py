@@ -68,8 +68,8 @@ else:
 if __name__ == "__main__":
     rospy.init_node("Feature_expect",anonymous=False)
     # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
-    resolution = 0.2
-    gridsize = (11,11)
+    resolution = 0.5
+    gridsize = (3,3)
     lookahead_dist = gridsize[0]*resolution
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
             train_summary_writer.flush()
             
-            for j in range(0,len(feature.feature_maps), 5):
+            for j in range(0,len(feature.feature_maps)):
                 traj = feature.all_trajs[j]
                 fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
                 plt.subplot(2, 2, 1)

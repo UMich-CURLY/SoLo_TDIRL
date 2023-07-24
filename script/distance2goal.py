@@ -116,7 +116,7 @@ class Distance2goal():
         # center_y = self.resolution * (self.gridsize[0] - index[1] - 1) + self.resolution / 2.0
 
         # center_x, center_y = center_x, -center_y
-        return (center_x, -center_y)
+        return (center_x, center_y)
 
 if __name__ == "__main__":
     rospy.init_node("distance2goal",anonymous=False)

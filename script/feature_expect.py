@@ -323,7 +323,7 @@ class FeatureExpect():
         reward_map.info.height = self.gridsize[1]
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-        reward_map.data = [int(cell) for cell in self.current_feature[1]]
+        reward_map.data = [int(cell*100) for cell in normalize(self.current_feature[:,0])]
         self.reward_pub.publish(reward_map)
         single_feature = np.array(self.current_feature).T
         if (self.received_goal):
