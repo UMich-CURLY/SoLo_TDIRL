@@ -666,7 +666,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
 
   # init nn model
   print("Number of feature: ", feat_maps[0].shape[0])
-  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 2, 2)
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 30, 30)
   # nn_r = DeepIRLConv(2, 3, lr, 3, 3)
   if(weight_path):
     nn_r.weight_path = weight_path
@@ -748,7 +748,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
   weight = nn_r.get_theta_no_loss()
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
-  for j in range(len(feat_maps)):
+  for j in range(0,len(feat_maps),5):
     traj = trajs[j]
     rewards, policy = get_irl_reward_policy(nn_r,feat_maps[j], P_a)
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
@@ -757,8 +757,9 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
     plt.subplot(2, 2, 2)
     if (feat_maps[j].shape[0] > 1):
       ax2 = img_utils.heatmap2d(np.reshape(feat_maps[j][1], (hight, width)), 'Obstacle Feature', block=False)
-    # plt.subplot(2, 2, 3)
-    # ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
+    plt.subplot(2, 2, 3)
+    if (rewards.shape[0] > 1):
+      ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
     
     s = StringIO()
 

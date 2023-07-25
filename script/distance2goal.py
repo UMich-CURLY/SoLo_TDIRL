@@ -68,12 +68,11 @@ class Distance2goal():
                 temp_marker.scale.y = self.resolution/2
                 temp_marker.scale.z = 0.1
                 temp_marker.color.a = 1.0
-                temp_marker.color.r = (self.gridsize[0]*x+y)/9
+                temp_marker.color.r = abs(3.0 - distance)/3.0 
                 temp_marker.color.g = 0.0
                 temp_marker.color.b = 0.0
                 markers.markers.append(temp_marker)
         self._pub_markers.publish(markers)
-
 
         #### Normalizing the goal distance #####
         # max_distance = max(result)

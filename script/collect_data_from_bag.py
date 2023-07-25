@@ -101,7 +101,6 @@ if __name__ == "__main__":
         else:
             rospy.sleep(0.1)
         full_loop_time = rospy.Time.now()
-        print("Loop time is ", (full_loop_time-full_start_time).to_sec())
         if (feature.reached_goal):
             train_summary_writer = tf.summary.FileWriter(next_folder_name+"/logs1")
 

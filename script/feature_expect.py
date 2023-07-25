@@ -212,7 +212,7 @@ class FeatureExpect():
     def in_which_cell(self, pose):
         # pose = [-pose[1], pose[0]]
 
-        if pose[0] < self.gridsize[1]*self.resolution and pose[0] > -0.5*self.resolution \
+        if pose[0] < self.gridsize[1]*self.resolution - 0.5*self.resolution and pose[0] > -0.5*self.resolution \
             and pose[1] > -0.5*self.gridsize[0]*self.resolution and pose[1] < 0.5*self.gridsize[0]*self.resolution:
 
             # pose[1] = max(0,pose[1])
@@ -315,6 +315,10 @@ class FeatureExpect():
             #     exit(0)
         self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
         self.feature_maps.append(np.array(self.current_feature).T)
+        dummy_reward = (normalize(self.current_feature[:,0]))
+        temp_reward = dummy_reward.reshape(self.gridsize[0], self.gridsize[1], order = 'F')
+        temp_reward = list(temp_reward.reshape(self.gridsize[0]*self.gridsize[1]))
+        temp_reward.reverse()
         reward_map = OccupancyGrid()
         reward_map.header.stamp = rospy.Time.now()
         reward_map.header.frame_id = "base_link"
@@ -323,7 +327,7 @@ class FeatureExpect():
         reward_map.info.height = self.gridsize[1]
         reward_map.info.origin.position.x = 0
         reward_map.info.origin.position.y = - (reward_map.info.width / 2.0) * reward_map.info.resolution
-        reward_map.data = [int(cell*100) for cell in normalize(self.current_feature[:,0])]
+        reward_map.data = [int(cell*100) for cell in temp_reward]
         self.reward_pub.publish(reward_map)
         single_feature = np.array(self.current_feature).T
         if (self.received_goal):
@@ -393,9 +397,11 @@ class FeatureExpect():
             if (distance < max(self.resolution, 0.2)):
                 break
             unraveled_index = index[1]*self.gridsize[1]+index[0]
-            if(not unraveled_index in self.trajs[i]):
-                self.trajs[i].append(unraveled_index)
-                self.all_trajs[int(i+(self.counter - len(self.robot_poses)))].append(unraveled_index)
+            print("Index is ", index)
+            print("Previous robot pose vs new one is ", self.all_robot_poses[i], R1)
+            print("Robot pose RB is ", robot_pose_rb)
+            if(not unraveled_index in self.all_trajs[i]):
+                self.all_trajs[i].append(unraveled_index)
             # print("trajs array is ", self.trajs[i])
         
             # Whether the robot reaches the goal
