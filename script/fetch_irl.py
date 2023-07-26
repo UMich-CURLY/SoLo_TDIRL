@@ -38,7 +38,7 @@ class IRL_Agent():
         self.LEARNING_RATE = 0.01
         self.N_ITERS = 1
         self.good_percent = 0.50
-        self.data_path = "../dataset_4"
+        self.data_path = "../dataset_3"
         self.weights_folder = "weights"
         if self.weights_folder not in os.listdir(self.data_path):
             __ = os.system("mkdir " + self.data_path+"/"+self.weights_folder)
