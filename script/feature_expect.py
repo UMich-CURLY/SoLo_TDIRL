@@ -210,7 +210,7 @@ class FeatureExpect():
         # print("delta_v: ",self.delta_v)
         
     def in_which_cell(self, pose):
-        # pose = [-pose[1], pose[0]]
+            # pose = [-pose[1], pose[0]]
 
         if pose[0] < self.gridsize[1]*self.resolution - 0.5*self.resolution and pose[0] > -0.5*self.resolution \
             and pose[1] > -0.5*self.gridsize[0]*self.resolution and pose[1] < 0.5*self.gridsize[0]*self.resolution:
@@ -218,15 +218,16 @@ class FeatureExpect():
             # pose[1] = max(0,pose[1])
             
             # y = min(((self.gridsize[1])*self.resolution - pose[1]) // self.resolution, 2)
-            y = ((self.gridsize[1]-0.5)*self.resolution - pose[0]) // self.resolution
+            y = ((self.gridsize[1])*self.resolution/2 - pose[1]) // self.resolution
 
-            x = (-pose[1] + self.gridsize[1]*self.resolution / 2.0) // self.resolution
+            x = ((-pose[0] + (self.gridsize[1]+0.5)*self.resolution) // self.resolution) -1
             # print([x, y]) # (1,2) -> (1,1) -> (0,1)
             if (x<0 or y<0):
                 return None
-            return [x, y]
+            return [int(x), int(y)]
         else:
             return None
+
 
     def get_waypointdistance(self, a, b):
         dx = a.pose.position.x - b.pose.position.x
@@ -357,7 +358,7 @@ class FeatureExpect():
         self.robot_poses.append(R1)
         self.all_robot_poses.append(R1)
         index, pose = self.get_index_in_robot_frame(R1,R1)
-        unraveled_index = index[1]*self.gridsize[1]+index[0]
+        unraveled_index = index[0]*self.gridsize[1]+index[1]
         self.trajs.append([unraveled_index])
         self.all_trajs.append([unraveled_index])
         self.get_current_feature()
@@ -396,10 +397,10 @@ class FeatureExpect():
                 continue
             if (distance < max(self.resolution, 0.2)):
                 break
-            unraveled_index = index[1]*self.gridsize[1]+index[0]
-            print("Index is ", index)
-            print("Previous robot pose vs new one is ", self.all_robot_poses[i], R1)
-            print("Robot pose RB is ", robot_pose_rb)
+            unraveled_index = index[0]*self.gridsize[1]+index[1]
+            # print("Index is ", index)
+            # print("Previous robot pose vs new one is ", self.all_robot_poses[i], R1)
+            # print("Robot pose RB is ", robot_pose_rb)
             if(not unraveled_index in self.all_trajs[i]):
                 self.all_trajs[i].append(unraveled_index)
             # print("trajs array is ", self.trajs[i])
