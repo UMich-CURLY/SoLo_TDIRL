@@ -395,7 +395,7 @@ class FeatureExpect():
             index, robot_pose_rb = self.get_index_in_robot_frame(self.all_robot_poses[i], R1)
             if(not index):
                 continue
-            if (distance < max(self.resolution, 0.2)):
+            if (distance < max(self.resolution/2, 0.2)):
                 break
             unraveled_index = index[0]*self.gridsize[1]+index[1]
             # print("Index is ", index)
@@ -414,7 +414,7 @@ class FeatureExpect():
         #     del self.trajs[index]
         #     remove_indices = remove_indices-np.ones(len(remove_indices))
 
-        if (distance <0.35):
+        if (distance <max(self.resolution/2, 0.2)):
             print("Finished a goal! ")
             self.received_goal = False
             self.reached_goal = True

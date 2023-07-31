@@ -15,6 +15,8 @@ except:
   from io import StringIO
 import tensorflow as tf
 import numpy as np
+
+
 PARSER = argparse.ArgumentParser(description=None)
 PARSER.add_argument('-n', '--new_fol', default= False, type=bool, help='new')
 ARGS = PARSER.parse_args()
@@ -74,7 +76,8 @@ if __name__ == "__main__":
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
     feature.lookahead_dist = lookahead_dist
-    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'lookahead_dist': lookahead_dist, 'notes': "Saving trajs when out of grid not based on time"}
+    sampling_time = resolution/1.0
+    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only"}
     with open(next_folder_name+"/config.yml", 'w') as file:
         yaml.dump(config_vals, file)
     # while(not feature.initpose_get):
@@ -87,19 +90,20 @@ if __name__ == "__main__":
     print("Feature map is ", feature.feature_maps)
     print("Rospy shutdown", rospy.is_shutdown())
     full_start_time = rospy.Time.now()
+    
     while(not rospy.is_shutdown()):
         start_time = rospy.Time.now()
         feature.get_expect()
         end_time = rospy.Time.now()
         time_diff = (end_time - start_time).to_sec()
 
-        if(time_diff >0.1 and feature.received_goal == True):
+        if(time_diff >sampling_time and feature.received_goal == True):
             print("Slow down bag file ")
             exit(0)
         if (not time_diff == 0.0):
-            rospy.sleep(0.1-time_diff)
+            rospy.sleep(sampling_time-time_diff)
         else:
-            rospy.sleep(0.1)
+            rospy.sleep(sampling_time)
         full_loop_time = rospy.Time.now()
         if (feature.reached_goal):
             train_summary_writer = tf.summary.FileWriter(next_folder_name+"/logs1")
