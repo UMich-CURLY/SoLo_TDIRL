@@ -77,7 +77,7 @@ if __name__ == "__main__":
     feature.folder_path = next_folder_name
     feature.lookahead_dist = lookahead_dist
     sampling_time = resolution/1.0
-    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only"}
+    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only, Using Topomap"}
     with open(next_folder_name+"/config.yml", 'w') as file:
         yaml.dump(config_vals, file)
     # while(not feature.initpose_get):

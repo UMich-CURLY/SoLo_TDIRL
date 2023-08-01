@@ -98,7 +98,7 @@ class FeatureExpect():
         self.trajs = deque()
         self.bad_feature = False
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
-        self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
+        self.get_plan = rospy.ServiceProxy('/plan_path', GetPlan)
         self.folder_path = "../dataset_0/"+"demo_0"
         self.lookahead_dist = 1.0
         self.reached_goal = False
