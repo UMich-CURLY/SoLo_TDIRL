@@ -20,7 +20,7 @@ class PathPublisher():
         self.irl_path.header.frame_id = 'my_map_frame'
         self.irl_path.header.stamp = rospy.Time.now()
 
-        self.path_pub = rospy.Publisher("/path", Path, queue_size=100)
+        self.path_pub = rospy.Publisher("/path", Path, queue_size=1)
 
         self.error = False
         
@@ -35,7 +35,7 @@ class PathPublisher():
         '''
         self.policy = policy
         self.error = False
-        direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0])}
+        direct = {'r':np.array([0, 1]), 'l':np.array([0, -1]), 'u':np.array([-1, 0]), 'd':np.array([1, 0]), 's':np.array([0, 0]), 'ru':np.array([-1, 1]), 'lu':([-1, -1])}
         
         current_pose = np.array([2,1])
 
@@ -129,4 +129,4 @@ if __name__ == "__main__":
     while(not rospy.is_shutdown()):
         
         controller.path_pub.publish(controller.irl_path)
-        rospy.sleep(0.1)
+        rospy.sleep(1)

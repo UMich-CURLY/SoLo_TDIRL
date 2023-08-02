@@ -20,7 +20,7 @@ from nav_msgs.msg import Odometry, OccupancyGrid, Path
 from move_base_msgs.msg import MoveBaseActionGoal
 from nav_msgs.srv import GetPlan
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
-from traj_predict import TrajPred
+# from traj_predict import TrajPred
 from rospy.numpy_msg import numpy_msg
 from rospy_tutorials.msg import Floats
 import tf2_ros, tf2_geometry_msgs
@@ -55,8 +55,10 @@ class Agent():
 
         self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback, queue_size = 100)
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
-        rospy.wait_for_service('/move_base/NavfnROS/make_plan')
-        self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
+        rospy.wait_for_service('/plan_path')
+        self.get_plan = rospy.ServiceProxy('/plan_path', GetPlan)
+        # rospy.wait_for_service('/move_base/NavfnROS/make_plan')
+        # self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
 
         self.goal_id = 0
 
@@ -410,7 +412,7 @@ class Agent():
             reward_map.info.origin.position.y = 0.0
             reward_map.data = [int(cell*100) for cell in utils.normalize(reward)]
             self.reward_pub.publish(reward_map)
-            dict = {'r' : 0, 'l': 1, 'u': 2, 's': 3}
+            dict = {'r' : 0, 'l': 1, 'u': 2, 's': 3, 'ru': 4, 'lu': 5 }
             int_policy = [dict[i] for i in policy]
             policy = np.reshape(policy, self.gridsize)
             
@@ -526,7 +528,7 @@ if __name__ == "__main__":
     gridsize = np.array([3, 3])
     resolution = 0.5
     dataset_path = "../dataset_2"
-    weight_path = dataset_path+"/weights2"
+    weight_path = dataset_path+"/weights"
     with open(weight_path+"/config.yml", 'r') as file:
         config1 = yaml.safe_load(file)
     with open(dataset_path+"/demo_0/config.yml", 'r') as file:
