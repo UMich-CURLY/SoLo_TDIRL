@@ -9,6 +9,7 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/'))
 from pyparsing import empty
 from distance2goal import Distance2goal
 from laser2density_new import laser2density
+from sdf_feature import SDF_feature
 # from social_distance import SocialDistance
 # from traj_predict import TrajPred
 import rospy
@@ -57,11 +58,12 @@ class FeatureExpect():
     def __init__(self, gridsize=(3,3), resolution=1):
         self.gridsize = gridsize
         self.resolution = resolution
-
         self.Distance2goal = Distance2goal(gridsize=gridsize, resolution=resolution)
         self.goal = PoseStamped()
         self.received_goal = False
         self.Laser2density = laser2density(gridsize=gridsize, resolution=resolution)
+        self.sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_Vvot9Ly1tCj_0.025.pgm"
+        self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
         # self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -148,6 +150,8 @@ class FeatureExpect():
         self.goal = data
         self.reached_goal = False
         self.received_goal = True
+        ### Hack to get the right image path for sdf
+        self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
         # self.robot_poses = deque()
         # self.trajs = deque()
         # self.bad_feature = False
@@ -297,6 +301,7 @@ class FeatureExpect():
     def get_current_feature(self):
         # 
         self.localcost_feature = self.Laser2density.get_feature_matrix()
+        self.sdf_cost_feature = self.sdf_feature.get_feature_matrix()
         # self.social_distance_feature = np.ndarray.tolist(self.SocialDistance.get_features())
         # feature_list = [self.social_distance_feature]
         # self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
@@ -314,7 +319,7 @@ class FeatureExpect():
             #     self.recived_goal = False
             #     print("Finished this goal, need new one")
             #     exit(0)
-        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(self.distance_feature))])
+        self.current_feature = np.array([self.distance_feature[i] + self.localcost_feature[i] + [self.sdf_cost_feature[i]] + [0.0] for i in range(len(self.distance_feature))])
         self.feature_maps.append(np.array(self.current_feature).T)
         dummy_reward = (normalize(self.current_feature[:,0]))
         temp_reward = dummy_reward.reshape(self.gridsize[0], self.gridsize[1], order = 'F')

@@ -19,8 +19,11 @@ import numpy as np
 
 PARSER = argparse.ArgumentParser(description=None)
 PARSER.add_argument('-n', '--new_fol', default= False, type=bool, help='new')
+PARSER.add_argument('-s', '--scene', default= "17DRP5sb8fy", type=str, help='scene')
+
 ARGS = PARSER.parse_args()
 make_new_folder = ARGS.new_fol
+scene = ARGS.scene
 max_num = 0
 for foldername in os.listdir("../"):
     number_str = "_"
@@ -76,8 +79,9 @@ if __name__ == "__main__":
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
     feature.lookahead_dist = lookahead_dist
+    feature.sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_"+scene+"_0.025.pgm"
     sampling_time = resolution/1.0
-    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only, Using Topomap"}
+    config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'scene': scene, 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only, Using Topomap and sdf"}
     with open(next_folder_name+"/config.yml", 'w') as file:
         yaml.dump(config_vals, file)
     # while(not feature.initpose_get):
@@ -118,7 +122,9 @@ if __name__ == "__main__":
                 plt.subplot(2, 2, 2)
                 if (feature.feature_maps[j].shape[0] > 1):
                     ax2 = img_utils.heatmap2d(np.reshape(feature.feature_maps[j][1], (gridsize[0], gridsize[1])), 'Obstacle Feature', block=False)
-                # plt.subplot(2, 2, 3)
+                plt.subplot(2, 2, 3)
+                if (feature.feature_maps[j].shape[0] > 1):
+                    ax2 = img_utils.heatmap2d(np.reshape(feature.feature_maps[j][4], (gridsize[0], gridsize[1])), 'SDF Feature', block=False)
                 # ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
                 
                 s = StringIO()

@@ -11,7 +11,7 @@ from IPython import embed
 import yaml
 from visualization_msgs.msg import MarkerArray, Marker
 
-class sdf_feature():
+class SDF_feature():
 
     def __init__(self, gridsize=(3,3), resolution=1, image_path = None):
         # gridsize: a tuple describe the size of grid, default (3,3), always choose gridsize[0] to be odd number.
@@ -23,6 +23,7 @@ class sdf_feature():
         img = cv.imread(image_path)
         img_v = cv.flip(img, 0)
         self.sdf_dist = cv.cvtColor(img_v,cv.COLOR_BGR2GRAY)
+        self.max_sdf = np.max(self.sdf_dist)
         cv.imwrite("grayscale.png", self.sdf_dist)
         self._pub = rospy.Publisher("sdf_points", PoseArray, queue_size=0)
         with open(image_path[:-3]+"yaml", 'r') as file:
@@ -32,11 +33,8 @@ class sdf_feature():
         self._pub_markers = rospy.Publisher("sdf_value", MarkerArray, queue_size = 1)
 
     
-    def laser_callback(self, data):
-        self.laser = data
-    
     def get_feature_matrix(self):
-        result = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
+        self.result = [0 for i in range(self.gridsize[0] * self.gridsize[1])]
         try:
             self.listener.waitForTransform("/base_frame", "/map", rospy.Time(0), rospy.Duration(4.0))
             pose = PoseStamped()
@@ -68,6 +66,7 @@ class sdf_feature():
                     pose_in_map = self.listener.transformPose("/map", pose)
                     sdf_center_x, sdf_center_y = self.get_sdf_map_index([pose_in_map.pose.position.x, pose_in_map.pose.position.y])
                     sdf_value = self.sdf_dist[int(sdf_center_y), int(sdf_center_x)]
+                    sdf_value = sdf_value
                     pose_array.poses.append(pose_in_map.pose)
                     temp_marker = Marker()
                     temp_marker.header.frame_id = "base_frame"
@@ -83,6 +82,7 @@ class sdf_feature():
                     temp_marker.color.g = sdf_value
                     temp_marker.color.b = sdf_value
                     markers.markers.append(temp_marker)
+                    self.result[x * self.gridsize[0] + y] = sdf_value
             self._pub.publish(pose_array)
             self._pub_markers.publish(markers)
         except:
@@ -116,7 +116,7 @@ class sdf_feature():
 if __name__ == "__main__":
     rospy.init_node("sdf_feature",anonymous=False)
     # laser2density = Laser2density(gridsize=(25,25), resolution=1)
-    sdf_feature = sdf_feature(gridsize=(30,30), resolution=0.05, image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_Vvot9Ly1tCj_0.025.pgm")
+    sdf_feature = SDF_feature(gridsize=(30,30), resolution=0.05, image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_Vvot9Ly1tCj_0.025.pgm")
 
     while not rospy.is_shutdown():
         sdf_feature.get_feature_matrix()

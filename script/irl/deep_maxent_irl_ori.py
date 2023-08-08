@@ -29,6 +29,8 @@ class DeepIRLFC:
 
     
     self.grad_r = tf.placeholder(tf.float32, [None, 1])
+    a = [1,2,3]
+    self.dummy_name = tf.convert_to_tensor(a)
     self.l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in self.theta])
     self.grad_l2 = tf.gradients(self.l2_loss, self.theta)
 
@@ -54,7 +56,8 @@ class DeepIRLFC:
         initializer=tf.contrib.layers.variance_scaling_initializer(mode="FAN_IN"))
       reward = tf_utils.fc(fc2, 1, scope="reward")
     theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
-
+    print(reward)
+    embed()
     return input_s, reward, theta
 
 
@@ -77,7 +80,7 @@ class DeepIRLFC:
   def apply_grads(self, feat_map, grad_r):
     grad_r = np.reshape(grad_r, [-1, 1])
     feat_map = np.reshape(feat_map, [-1, self.n_input])
-    _, grad_theta, l2_loss, grad_norms = self.sess.run([self.optimize, self.grad_theta, self.l2_loss, self.grad_norms], 
+    _, grad_theta, l2_loss, grad_norms, name = self.sess.run([self.optimize, self.grad_theta, self.l2_loss, self.grad_norms, self.dummy_name], 
       feed_dict={self.grad_r: grad_r, self.input_s: feat_map})
     return grad_theta, l2_loss, grad_norms
 
@@ -97,6 +100,7 @@ class DeepIRLConv:
     self.n_h2 = n_h2
     self.name = name
     self.feature_map_size = feature_map_size
+    print("Feature map size is ", self.feature_map_size)
     self.sess = tf.Session()
     self.input_s, self.reward, self.theta = self._build_network(self.name)
     # self.optimizer = tf.train.GradientDescentOptimizer(lr)
@@ -104,6 +108,7 @@ class DeepIRLConv:
 
     
     self.grad_r = tf.placeholder(tf.float32, [None, self.feature_map_size, self.feature_map_size, 1])
+    # self.grad_r = tf.placeholder(tf.float32, [None, 1])
     self.l2_loss = tf.add_n([tf.nn.l2_loss(v) for v in self.theta])
     self.grad_l2 = tf.gradients(self.l2_loss, self.theta)
     self.grad_theta = tf.gradients(self.reward, self.theta, -self.grad_r)
@@ -137,6 +142,8 @@ class DeepIRLConv:
     # theta = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=name)
 
     input_s = tf.placeholder(tf.float32, [1, self.feature_map_size, self.feature_map_size , self.n_input])
+    print(input_s)
+    # input_s = tf.placeholder(tf.float32, [None, self.n_input])
     hidden_size1 = 32
     hidden_size2 = 64
     with tf.variable_scope(name):
@@ -153,13 +160,13 @@ class DeepIRLConv:
       max_pool2 = tf.layers.max_pooling2d(inputs=conv6,pool_size=2,strides=2,name="Pool2")
       print(max_pool2)
       # Block3
-      unpooling1 = tf.contrib.layers.conv2d_transpose(max_pool2,num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
+      unpooling1 = tf.contrib.layers.conv2d_transpose(max_pool2,num_outputs=hidden_size2,kernel_size=(2,2),stride=2,padding="valid")
       conv7 = self.conv_layer(unpooling1, hidden_size2, hidden_size2, name="Conv7")
       conv8 = self.conv_layer(conv7, hidden_size2, hidden_size2, name="Conv8")
       conv9 = self.conv_layer(conv8, hidden_size2, hidden_size2, name="Conv9")
       print(conv9)
       # Block4
-      unpooling2 = tf.contrib.layers.conv2d_transpose(conv9, num_outputs=hidden_size2,kernel_size=(3,3),stride=2,padding="valid")
+      unpooling2 = tf.contrib.layers.conv2d_transpose(conv9, num_outputs=hidden_size2,kernel_size=(2,2),stride=2,padding="valid")
       conv10 = self.conv_layer(unpooling2, hidden_size1, hidden_size1, name="Conv10")
       conv11 = self.conv_layer(conv10, hidden_size1, hidden_size1, name="Conv11")
       conv12 = self.conv_layer(conv11, hidden_size1, hidden_size1, name="Conv12")
@@ -666,8 +673,8 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
 
   # init nn model
   print("Number of feature: ", feat_maps[0].shape[0])
-  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 30, 30)
-  # nn_r = DeepIRLConv(2, 3, lr, 3, 3)
+  nn_r = DeepIRLFC(feat_maps[0].shape[0], lr, 3000, 300)
+  # nn_r = DeepIRLConv(1, feat_maps[0].shape[0], lr, 3, 3)
   if(weight_path):
     nn_r.weight_path = weight_path
   # Hight and width of the feature map. (Assume the grid is a square)
@@ -686,11 +693,12 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
   prev_l2_loss = 1000
   l2_loss = 0
   # while (True):
-  for j in range(len(feat_maps)):
-    traj1 = [trajs[j]]
-    mu_D1 = demo_svf(traj1, N_STATES)
+  for i in range(n_iters):
+    for j in range(len(feat_maps)):
+      traj1 = [trajs[j]]
+      mu_D1 = demo_svf(traj1, N_STATES)
 
-    for i in range(n_iters):
+    
         
 
 
@@ -730,7 +738,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
                                                     #  simple_value=grad_theta)])
       # train_summary_writer.add_summary(loss_summary, global_step=j*len(trajs)*n_iters + i*n_iters + iteration)
       # train_summary_writer.add_summary(grad_summary, global_step=i + j*n_iters)
-      print("loss for feature %i is %d", i + j*n_iters ,l2_loss)
+      print("gradient for feature %i is %d", i + j*n_iters ,grad_r1)
     # if (abs(prev_l2_loss - l2_loss) > 0.0001):
     #   prev_l2_loss = l2_loss
     # else:
@@ -756,7 +764,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
     ax1 = img_utils.heatmap2d(np.reshape(feat_maps[j][0], (hight, width)), 'Distance Feature', block=False)
     plt.subplot(2, 2, 2)
     if (feat_maps[j].shape[0] > 1):
-      ax2 = img_utils.heatmap2d(np.reshape(feat_maps[j][1], (hight, width)), 'Obstacle Feature', block=False)
+      ax2 = img_utils.heatmap2d(np.reshape(feat_maps[j][4], (hight, width)), 'SDF Feature', block=False)
     plt.subplot(2, 2, 3)
     if (rewards.shape[0] > 1):
       ax3 = img_utils.heatmap2d(np.reshape(rewards, (hight, width)), 'Reward', block=False)
