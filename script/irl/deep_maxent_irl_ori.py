@@ -756,7 +756,7 @@ def deep_maxent_irl_no_traj_loss_tribhi(feat_maps, P_a, gamma, trajs,  lr, n_ite
   weight = nn_r.get_theta_no_loss()
 
   _, policy = value_iteration.value_iteration(P_a, rewards, gamma, error=0.01, deterministic=True)
-  for j in range(0,len(feat_maps),5):
+  for j in range(0,len(feat_maps)):
     traj = trajs[j]
     rewards, policy = get_irl_reward_policy(nn_r,feat_maps[j], P_a)
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)

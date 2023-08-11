@@ -36,7 +36,7 @@ class IRL_Agent():
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
         self.LEARNING_RATE = 0.001
-        self.N_ITERS = 10
+        self.N_ITERS = 1
         self.good_percent = 0.50
         self.data_path = "../dataset_1"
         self.weights_folder = "weights"
@@ -233,6 +233,7 @@ class IRL_Agent():
                             for j in range(len(data2.files)):
                                 fm_name = 'arr_{}'.format(j)
                                 temp_fm.append(data2[fm_name])
+                            temp_fm[4] = temp_fm[4]/70
                             self.fms.append(np.array(temp_fm[0:-1]))
         # print(self.percent_change)
         self.N_STATE = self.fms[0][0].shape[0]
