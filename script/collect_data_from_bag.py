@@ -79,7 +79,7 @@ if __name__ == "__main__":
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
     feature.lookahead_dist = lookahead_dist
-    feature.sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_"+scene+"_0.025.pgm"
+    feature.sdf_image_path = "/root/catkin_ws/src/ros2lcm/maps/sdf_resolution_"+scene+"_0.025.pgm"
     sampling_time = resolution/1.0
     config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'scene': scene, 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only, Using Topomap and sdf"}
     with open(next_folder_name+"/config.yml", 'w') as file:

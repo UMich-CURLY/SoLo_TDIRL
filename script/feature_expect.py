@@ -63,7 +63,8 @@ class FeatureExpect():
         self.received_goal = False
         self.Laser2density = laser2density(gridsize=gridsize, resolution=resolution)
         self.sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_Vvot9Ly1tCj_0.025.pgm"
-        self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
+        self.sdf_feature = []
+        # self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
         # self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
 
@@ -151,7 +152,8 @@ class FeatureExpect():
         self.reached_goal = False
         self.received_goal = True
         ### Hack to get the right image path for sdf
-        self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
+        print (self.sdf_image_path)
+        self.sdf_feature = SDF_feature(gridsize=self.gridsize, resolution = self.resolution, image_path = self.sdf_image_path)
         # self.robot_poses = deque()
         # self.trajs = deque()
         # self.bad_feature = False

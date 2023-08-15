@@ -8,6 +8,8 @@ sys.path.append("/root/miniconda3/envs/habitat/lib/python3.7/site-packages")
 
 from distance2goal import Distance2goal
 from laser2density_new import laser2density
+from sdf_feature import SDF_feature
+
 import numpy as np
 from mdp import gridworld
 from mdp import value_iteration
@@ -43,20 +45,23 @@ class Agent():
         gridsize = np.array(config["grid_size"])
         resolution = config["resolution"]
         self.lookahead_dist = config["lookahead_dist"]
-        self.NUM_FEATURE = 2
+        self.NUM_FEATURE = 5
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer) 
         # self.robot_pose = np.array([0, 0])
         self.listener1 = tf.TransformListener()
         self.use_tf1 = True
         self.result = False
-
+        
         self.result_sub = rospy.Subscriber("/trajectory_finished", Bool, self.result_callback, queue_size=100)
 
         self.odom_sub = rospy.Subscriber('/sim/robot_pose', PoseStamped, self.pose_callback, queue_size = 100)
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
         rospy.wait_for_service('/plan_path')
         self.get_plan = rospy.ServiceProxy('/plan_path', GetPlan)
+        scene = rospy.get_param("/server_node/scene")
+        sdf_image_path = "/root/catkin_ws/src/ros2lcm/maps/sdf_resolution_"+scene+"_0.025.pgm"
+        self.sdf = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = sdf_image_path)
         # rospy.wait_for_service('/move_base/NavfnROS/make_plan')
         # self.get_plan = rospy.ServiceProxy('/move_base/NavfnROS/make_plan', GetPlan)
 
@@ -290,6 +295,7 @@ class Agent():
         if (not self.received_waypoint):
             return None
         distance_feature = self.distance.get_feature_matrix(self.current_waypoint)
+        self.sdf_feature = self.sdf.get_feature_matrix()
         # print ("Distance feature is and goal is ", distance_feature, goal)
         # while(distance_feature == [0 for i in range(self.gridsize[0] * self.gridsize[1])]):
         #     distance_feature = distance.get_feature_matrix(goal)
@@ -303,7 +309,7 @@ class Agent():
             # print(self.distance_feature[0], self.localcost_feature[0])
             # traj_feature, _ = self.TrajPred.get_feature_matrix()
             # print("Current feature is", [distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + social_distance_feature[i] for i in range(len(distance_feature))])
-            self.current_feature = np.array([distance_feature[i] + localcost_feature[i] + self.traj_feature[i] + [0.0] for i in range(len(distance_feature))])
+            self.current_feature = np.array([distance_feature[i] + localcost_feature[i] + [self.sdf_feature[i]] + [0.0] for i in range(len(distance_feature))])
 
         else:
             print("No laser right?")
@@ -322,7 +328,7 @@ class Agent():
         rmap_gt = np.ones([gridsize[0], gridsize[1]])
         gw = gridworld.GridWorld(rmap_gt, {}, 1 - act_rand)
         P_a = gw.get_transition_mat()
-        feat_map_new = np.array(feat_map[:,0:2])
+        feat_map_new = np.array(feat_map[:,0:self.NUM_FEATURE])
         # print(feat_map_new.shape)
         reward, policy = get_irl_reward_policy(self.nn_r, feat_map_new.T, P_a,gamma)
 
@@ -397,7 +403,6 @@ class Agent():
             if (not self.received_feature):
                 return
             # feature = self.get_feature(self.distance, self.current_waypoint, self.laser)
-
 
             reward, policy = self.get_reward_policy(self.current_feature, self.gridsize)
 

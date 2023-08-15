@@ -66,7 +66,7 @@ class SDF_feature():
                     pose_in_map = self.listener.transformPose("/map", pose)
                     sdf_center_x, sdf_center_y = self.get_sdf_map_index([pose_in_map.pose.position.x, pose_in_map.pose.position.y])
                     sdf_value = self.sdf_dist[int(sdf_center_y), int(sdf_center_x)]
-                    sdf_value = sdf_value
+                    sdf_value = sdf_value/float(self.max_sdf)*3.0
                     pose_array.poses.append(pose_in_map.pose)
                     temp_marker = Marker()
                     temp_marker.header.frame_id = "base_frame"
@@ -87,6 +87,7 @@ class SDF_feature():
             self._pub_markers.publish(markers)
         except:
             print("FML")
+        print ("sdf is", self.result)
         return self.result
 
     def get_grid_center_position(self, index):
