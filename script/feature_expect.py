@@ -63,7 +63,7 @@ class FeatureExpect():
         self.received_goal = False
         self.Laser2density = laser2density(gridsize=gridsize, resolution=resolution)
         self.sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_Vvot9Ly1tCj_0.025.pgm"
-        self.sdf_feature = []
+        # self.sdf_feature = []
         # self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = self.sdf_image_path)
         self.traj_sub = rospy.Subscriber("traj_matrix", numpy_msg(Floats), self.traj_callback,queue_size=100)
         # self.SocialDistance = SocialDistance(gridsize=gridsize, resolution=resolution)
@@ -101,7 +101,11 @@ class FeatureExpect():
         self.trajs = deque()
         self.bad_feature = False
         self._pub_waypoint = rospy.Publisher("~waypoint", Marker, queue_size = 1)
+        rospy.wait_for_service('/plan_path')
         self.get_plan = rospy.ServiceProxy('/plan_path', GetPlan)
+        scene = rospy.get_param("/server_node/scene")
+        sdf_image_path = "/root/catkin_ws/src/ros2lcm/maps/sdf_resolution_"+scene+"_0.025.pgm"
+        self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = sdf_image_path)
         self.folder_path = "../dataset_0/"+"demo_0"
         self.lookahead_dist = 1.0
         self.reached_goal = False
