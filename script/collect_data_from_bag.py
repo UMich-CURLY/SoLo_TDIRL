@@ -72,21 +72,22 @@ else:
 if __name__ == "__main__":
     rospy.init_node("Feature_expect",anonymous=False)
     # initpose_pub = rospy.Publisher("/initialpose", PoseWithCovarianceStamped, queue_size=1)
-    resolution = 0.2
+    resolution = 0.4
     gridsize = (11,11)
     lookahead_dist = gridsize[0]*resolution
+    rospy.sleep(1)
     feature = feature_expect.FeatureExpect(resolution= resolution, gridsize=gridsize)
     feature.folder_path = next_folder_name
     feature.lookahead_dist = lookahead_dist
     feature.sdf_image_path = "/root/catkin_ws/src/ros2lcm/maps/sdf_resolution_"+scene+"_0.025.pgm"
-    sampling_time = resolution/2.0
+    sampling_time = resolution/1.5
     config_vals = {'resolution': resolution, 'grid_size': [gridsize[0], gridsize[1]], 'scene': scene, 'lookahead_dist': lookahead_dist, 'sampling time': sampling_time, 'notes': "Saving trajs when out of grid not based on time, static scenes only, Using Topomap and sdf"}
     with open(next_folder_name+"/config.yml", 'w') as file:
         yaml.dump(config_vals, file)
     # while(not feature.initpose_get):
     #     rospy.sleep(0.1)
     # feature.reset_robot()
-    rospy.sleep(1)
+    
     # while(not feature.received_goal):
     #     rospy.sleep(0.1)
     # np.savez(fm_file, *feature.feature_maps)
@@ -103,7 +104,6 @@ if __name__ == "__main__":
         if(time_diff >sampling_time and feature.received_goal == True):
             print("Slow down bag file ")
             embed()
-            exit(0)
         if (not time_diff == 0.0):
             rospy.sleep(sampling_time-time_diff)
         else:

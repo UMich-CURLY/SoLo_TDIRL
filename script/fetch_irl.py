@@ -38,7 +38,7 @@ class IRL_Agent():
         self.LEARNING_RATE = 0.001
         self.N_ITERS = 1
         self.good_percent = 0.50
-        self.data_path = "../dataset_2"
+        self.data_path = "../dataset_6"
         self.weights_folder = "weights"
         if self.weights_folder not in os.listdir(self.data_path):
             __ = os.system("mkdir " + self.data_path+"/"+self.weights_folder)
@@ -233,7 +233,6 @@ class IRL_Agent():
                             for j in range(len(data2.files)):
                                 fm_name = 'arr_{}'.format(j)
                                 temp_fm.append(data2[fm_name])
-                            temp_fm[4] = temp_fm[4]/70
                             self.fms.append(np.array(temp_fm[0:-1]))
         # print(self.percent_change)
         self.N_STATE = self.fms[0][0].shape[0]
