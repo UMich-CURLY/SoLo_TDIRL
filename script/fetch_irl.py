@@ -11,7 +11,6 @@ import random
 
 import sys
 import os
-
 from IPython import embed
 # from script.irl.deep_maxent_irl import deep_maxent_irl_fetch
 
@@ -20,7 +19,7 @@ sys.path.append(os.path.abspath('/root/catkin_ws/src/SoLo_TDIRL/script/irl/'))
 import img_utils
 from mdp import gridworld
 from mdp import value_iteration
-from deep_maxent_irl_ori import *
+from deep_maxent_irl_trying import *
 # from maxent_irl import *
 from utils import *
 # from lp_irl import *
@@ -35,16 +34,16 @@ class IRL_Agent():
         self.percent_change = []
         self.ACT_RAND = 0.3
         self.GAMMA = 0.9
-        self.LEARNING_RATE = 0.001
-        self.N_ITERS = 1
+        
+        self.LEARNING_RATE = 0.01 ## Will be decayed exponenetially
+        self.N_ITERS = 30
         self.good_percent = 0.50
-        self.data_path = "../dataset_6"
+        self.data_path = "../dataset_7"
         self.weights_folder = "weights"
         if self.weights_folder not in os.listdir(self.data_path):
             __ = os.system("mkdir " + self.data_path+"/"+self.weights_folder)
         else:
             print("Do you want to re train?")
-            embed()
         self.weight_path = self.data_path+"/"+self.weights_folder+"/saved_weights"
         
     def calculate_good_percent(self):
@@ -224,6 +223,8 @@ class IRL_Agent():
                             if(cur_traj_len > 1):
                                 for j in range(len(data[traj_name]) - 1):
                                     traj.append(Step(cur_state=int(data[traj_name][j]), next_state=int(data[traj_name][j+1])))
+                                #### Adding the last step a s stay action, skipping for now
+                                # traj.append(Step(cur_state=int(data[traj_name][j+1]), next_state=int(data[traj_name][j+1])))
                             else:
                                 traj.append(Step(cur_state=int(data[traj_name][0]), next_state=int(data[traj_name][0])))
                                 # continue
@@ -233,8 +234,10 @@ class IRL_Agent():
                             for j in range(len(data2.files)):
                                 fm_name = 'arr_{}'.format(j)
                                 temp_fm.append(data2[fm_name])
-                            self.fms.append(np.array(temp_fm[0:-1]))
+                            self.fms.append(np.array(temp_fm[0:2]))
         # print(self.percent_change)
+        self.fms = self.fms[0:195]
+        self.trajs = self.trajs[0:195]
         self.N_STATE = self.fms[0][0].shape[0]
         # Assume the grid is square.
         self.H = int(np.sqrt(self.N_STATE))
@@ -307,17 +310,17 @@ class IRL_Agent():
         config_vals = {"name": nn_r.name, "lr": nn_r.lr, "n_h1": nn_r.n_h1, "n_h2": nn_r.n_h2, "n_iters": self.N_ITERS, "gamma": self.GAMMA}
         with open(self.data_path+"/"+self.weights_folder+"/config.yml", 'w') as file:
             yaml.dump(config_vals, file)
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
-        plt.subplot(2, 2, 1)
-        ax1 = img_utils.heatmap2d(np.reshape(self.fms[3][0], (self.H,self.W)), 'Distance Feature', block=False)
-        plt.subplot(2, 2, 2)
-        if (self.fms[3].shape[1] == 2):
-            ax2 = img_utils.heatmap2d(np.reshape(self.fms[3][1], (self.H,self.W)), 'obs Feature', block=False)
-        plt.subplot(2, 2, 3)
-        rewards, policy = get_irl_reward_policy(nn_r,self.fms[3], P_a)
-        ax3 = img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward', block=False)
-        # plt.subplot(2, 2, 4)
-        plt.show()
+        # fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+        # plt.subplot(2, 2, 1)
+        # ax1 = img_utils.heatmap2d(np.reshape(self.fms[3][0], (self.H,self.W)), 'Distance Feature', block=False)
+        # plt.subplot(2, 2, 2)
+        # if (self.fms[3].shape[1] == 2):
+        #     ax2 = img_utils.heatmap2d(np.reshape(self.fms[3][1], (self.H,self.W)), 'obs Feature', block=False)
+        # plt.subplot(2, 2, 3)
+        # rewards, policy = get_irl_reward_policy(nn_r,self.fms[3], P_a)
+        # ax3 = img_utils.heatmap2d(np.reshape(rewards, (self.H,self.W)), 'Reward', block=False)
+        # # plt.subplot(2, 2, 4)
+        # plt.show()
         
 
     def train_multi_trajs(self):
