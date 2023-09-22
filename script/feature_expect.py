@@ -104,7 +104,8 @@ class FeatureExpect():
         rospy.wait_for_service('/plan_path')
         self.get_plan = rospy.ServiceProxy('/plan_path', GetPlan)
         scene = rospy.get_param("/server_node/scene")
-        sdf_image_path = "/root/catkin_ws/src/ros2lcm/maps/sdf_resolution_"+scene+"_0.025.pgm"
+        sdf_image_path = "/root/catkin_ws/src/SoLo_TDIRL/maps/maps/sdf_resolution_"+scene+"_0.025.pgm"
+        print("HERE!!", sdf_image_path)
         self.sdf_feature = SDF_feature(gridsize=gridsize, resolution = resolution, image_path = sdf_image_path)
         self.folder_path = "../dataset_0/"+"demo_0"
         self.lookahead_dist = 1.0
